@@ -1,0 +1,15 @@
+# Dependency directories
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+
+# OS files
+.DS_Store
+Thumbs.db

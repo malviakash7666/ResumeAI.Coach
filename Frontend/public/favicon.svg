@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED" />
+      <stop offset="50%" stop-color="#C084FC" />
+      <stop offset="100%" stop-color="#6366F1" />
+    </linearGradient>
+    
+    <!-- Sparkle/Glow Gradient -->
+    <linearGradient id="sparkle-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E0E7FF" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded Backdrop -->
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)" />
+
+  <!-- Document/Resume Shape -->
+  <rect x="144" y="112" width="224" height="288" rx="24" fill="#1E1B4B" opacity="0.85" />
+  
+  <!-- Text lines representing the resume content -->
+  <rect x="184" y="160" width="144" height="12" rx="6" fill="#E2E8F0" opacity="0.9" />
+  <rect x="184" y="200" width="112" height="10" rx="5" fill="#94A3B8" opacity="0.7" />
+  <rect x="184" y="232" width="144" height="10" rx="5" fill="#94A3B8" opacity="0.7" />
+  <rect x="184" y="264" width="80" height="10" rx="5" fill="#94A3B8" opacity="0.7" />
+
+  <!-- AI Sparkle/Coach Star in the corner, overlapping the document -->
+  <path d="M352 256 L368 312 L424 328 L368 344 L352 400 L336 344 L280 328 L336 312 Z" fill="url(#sparkle-grad)" />
+  
+  <!-- Small secondary sparkle -->
+  <path d="M144 320 L152 344 L176 352 L152 360 L144 384 L136 360 L112 352 L136 344 Z" fill="#FFFFFF" opacity="0.9" />
+
+  <!-- Tiny third sparkle -->
+  <path d="M320 96 L324 108 L336 112 L324 116 L320 128 L316 116 L304 112 L316 108 Z" fill="#FFFFFF" opacity="0.75" />
+</svg>
