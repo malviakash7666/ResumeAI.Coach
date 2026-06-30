@@ -6,6 +6,10 @@ import {
   startInterview,
   chatInterview,
   endInterview,
+  getUserResumes,
+  getUserInterviews,
+  getInterviewReport,
+  deleteUserResume,
 } from "./resume.controller.js";
 import { protect, optionalProtect } from "../middlewares/auth.middleware.js";
 
@@ -31,5 +35,10 @@ router.post("/analyze-resume", optionalProtect, analyzeResume);
 router.post("/start-interview", protect, startInterview);
 router.post("/chat-interview", protect, chatInterview);
 router.post("/end-interview", protect, endInterview);
+
+router.get("/resumes", protect, getUserResumes);
+router.delete("/resumes/:id", protect, deleteUserResume);
+router.get("/interviews", protect, getUserInterviews);
+router.get("/interviews/:id", protect, getInterviewReport);
 
 export default router;

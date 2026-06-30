@@ -13,6 +13,12 @@ if (hasCloudinarySecrets) {
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
   });
+  
+  console.log({
+  cloud: process.env.CLOUDINARY_CLOUD_NAME,
+  key: process.env.CLOUDINARY_API_KEY,
+  secretExists: !!process.env.CLOUDINARY_API_SECRET,
+});
   console.log("☁️ Cloudinary successfully configured");
 } else {
   console.warn("⚠️ Cloudinary secrets are missing in environment variables. Falling back to local simulated file URL mode.");

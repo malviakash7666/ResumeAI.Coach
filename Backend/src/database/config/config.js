@@ -1,10 +1,10 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-const sslConfig = {
+const sslConfig = process.env.DB_SSL === "true" ? {
   require: true,
   rejectUnauthorized: false,
-};
+} : false;
 
 const config = {
   development: {
@@ -14,9 +14,7 @@ const config = {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: "postgres",
-    dialectOptions: {
-      ssl: sslConfig,
-    },
+    dialectOptions: sslConfig ? { ssl: sslConfig } : {},
   },
 
   test: {
@@ -26,16 +24,17 @@ const config = {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: "postgres",
-    dialectOptions: {
-      ssl: sslConfig,
-    },
+    dialectOptions: sslConfig ? { ssl: sslConfig } : {},
   },
 
   production: {
     use_env_variable: "DATABASE_URL",
     dialect: "postgres",
     dialectOptions: {
-      ssl: sslConfig,
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
     },
   },
 };

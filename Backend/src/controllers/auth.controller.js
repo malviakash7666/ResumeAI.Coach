@@ -1,6 +1,8 @@
 import authService from "../services/auth.service.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
+import db from "../database/models/index.js";
+import passwordService from "../services/password.service.js";
 
 // Cookie options: HttpOnly, secure in production, lax sameSite
 const cookieOptions = {
@@ -94,6 +96,43 @@ class AuthController {
       return res
         .status(200)
         .json(new ApiResponse(200, { user }, "User profile retrieved successfully"));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateProfile = async (req, res, next) => {
+    try {
+      const { name, phone, bio } = req.body;
+      const user = await db.User.findByPk(req.user.id);
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+
+      await user.update({ name, phone, bio });
+      const updatedUser = await authService.getUserProfile(req.user.id);
+      return res.status(200).json(new ApiResponse(200, { user: updatedUser }, "Profile updated successfully"));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  changePassword = async (req, res, next) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const user = await db.User.findByPk(req.user.id);
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+
+      const isMatch = await passwordService.verifyPassword(currentPassword, user.password);
+      if (!isMatch) {
+        throw new ApiError(400, "Current password does not match");
+      }
+
+      const hashedPassword = await passwordService.hashPassword(newPassword);
+      await user.update({ password: hashedPassword });
+      return res.status(200).json(new ApiResponse(200, {}, "Password updated successfully"));
     } catch (error) {
       next(error);
     }

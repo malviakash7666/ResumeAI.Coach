@@ -335,22 +335,22 @@ export const uploadResume = async (req, res, next) => {
         throw new ApiError(404, "User profile not found.");
       }
 
-      // Upload to Cloudinary (will replace the previous file if user.resumeUrl is not null)
-      const uploadResult = await cloudinaryService.replaceResume(
-        user.resumeUrl,
+      // Upload to Cloudinary
+      const uploadResult = await cloudinaryService.uploadResume(
         req.file.buffer,
         req.file.originalname
       );
 
-      // Save Cloudinary URL in user DB profile and clear old interview records
-      await user.update({
+      // Create a Resume row in the DB
+      const resumeRecord = await db.Resume.create({
+        userId: user.id,
+        fileName: req.file.originalname,
         resumeUrl: uploadResult.secure_url,
         resumeAnalysis: null,
-        interviewHistory: null,
       });
 
-      sessionId = user.id; // use User UUID as the session identifier
-      console.log(`📂 Auth User Resume uploaded. Cloudinary URL: ${uploadResult.secure_url}`);
+      sessionId = resumeRecord.id; // use Resume UUID as the session identifier
+      console.log(`📂 Auth User Resume uploaded. Resume ID: ${sessionId}, URL: ${uploadResult.secure_url}`);
     } else {
       sessionId = generateSessionId();
       console.log(`📂 Guest Resume uploaded. Created session: ${sessionId}`);
@@ -363,6 +363,7 @@ export const uploadResume = async (req, res, next) => {
       analysis: null,
       interview: null,
       finalReport: null,
+      fileName: req.file.originalname,
     };
 
     return res.status(200).json(new ApiResponse(200, { sessionId }, "Resume uploaded successfully"));
@@ -417,11 +418,11 @@ export const analyzeResume = async (req, res, next) => {
 
     // Save to database if authenticated user
     if (req.user && req.user.id) {
-      await User.update(
-        { resumeAnalysis: analysisResult },
-        { where: { id: req.user.id } }
-      );
-      console.log(`💾 Saved resume analysis to DB for user ID: ${req.user.id}`);
+      const resumeRecord = await db.Resume.findByPk(sessionId);
+      if (resumeRecord) {
+        await resumeRecord.update({ resumeAnalysis: analysisResult });
+        console.log(`💾 Saved resume analysis to DB for resume ID: ${sessionId}`);
+      }
     }
 
     return res.status(200).json(new ApiResponse(200, analysisResult, "Resume analyzed successfully"));
@@ -433,7 +434,7 @@ export const analyzeResume = async (req, res, next) => {
 // 3. Start Interview
 export const startInterview = async (req, res, next) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, mode } = req.body;
     if (!sessionId || !sessions[sessionId]) {
       throw new ApiError(404, "Active session not found. Please upload your resume first.");
     }
@@ -489,11 +490,18 @@ export const startInterview = async (req, res, next) => {
 
     // Save initial interview state to database if user is logged in
     if (req.user && req.user.id) {
-      await User.update(
-        { interviewHistory: sessions[sessionId].interview },
-        { where: { id: req.user.id } }
-      );
-      console.log(`💾 Saved initial interview history to DB for user ID: ${req.user.id}`);
+      const interviewRecord = await db.Interview.create({
+        userId: req.user.id,
+        resumeId: sessionId,
+        fileName: sessions[sessionId].fileName || "resume.pdf",
+        mode: mode || "text",
+        chatHistory: sessions[sessionId].interview.chatHistory,
+        scores: [],
+        finalReport: null,
+        overallScore: null,
+      });
+      sessions[sessionId].interview.dbInterviewId = interviewRecord.id;
+      console.log(`💾 Saved initial interview history to DB with Interview ID: ${interviewRecord.id}`);
     }
 
     return res.status(200).json(new ApiResponse(200, { question: firstQuestion }, "Interview started successfully"));
@@ -535,7 +543,7 @@ export const chatInterview = async (req, res, next) => {
           
           Question: "${currentQuestion}"
           Candidate's Answer: "${answer}"
-
+ 
           Rate their response on a 0 to 10 scale across four parameters:
           1. technicalScore (technical accuracy, depth)
           2. communicationScore (clarity, structured articulation)
@@ -581,7 +589,7 @@ export const chatInterview = async (req, res, next) => {
           content: `Review the ongoing technical interview conversation history:
           
           ${chatHistoryFormatted}
-
+ 
           The candidate's last answer was evaluated. (Score: ${grading.score}/10, Feedback: ${grading.feedback})
           
           Generate the next logical interview question. Follow up on their previous answer, projects, or weak areas. Gradually increase the difficulty.
@@ -607,12 +615,15 @@ export const chatInterview = async (req, res, next) => {
     interview.questionCount += 1;
 
     // Save ongoing interview state to database if user is logged in
-    if (req.user && req.user.id) {
-      await User.update(
-        { interviewHistory: interview },
-        { where: { id: req.user.id } }
+    if (req.user && req.user.id && interview.dbInterviewId) {
+      await db.Interview.update(
+        {
+          chatHistory: interview.chatHistory,
+          scores: interview.scores,
+        },
+        { where: { id: interview.dbInterviewId } }
       );
-      console.log(`💾 Saved ongoing interview history to DB for user ID: ${req.user.id}`);
+      console.log(`💾 Saved ongoing interview history to DB for Interview ID: ${interview.dbInterviewId}`);
     }
 
     return res.status(200).json(
@@ -668,7 +679,7 @@ export const endInterview = async (req, res, next) => {
           
           Individual Answer Evaluations:
           ${scoresFormatted}
-
+ 
           Perform a detailed assessment of their technical strengths, weaknesses, communication quality, and confidence.
           You must also compile a list of ideal answers for the questions asked in this interview.
           Respond ONLY with a JSON object in this format:
@@ -692,7 +703,7 @@ export const endInterview = async (req, res, next) => {
                 "topic": "Topic Name",
                 "actionableSteps": ["Step 1", "Step 2"],
                 "estimatedTime": "1 week"
-              }
+               }
             ]
           }
           `,
@@ -709,21 +720,101 @@ export const endInterview = async (req, res, next) => {
     sessions[sessionId].finalReport = finalReport;
 
     // Save final report history to database if user is logged in
-    if (req.user && req.user.id) {
-      await User.update(
+    if (req.user && req.user.id && interview.dbInterviewId) {
+      await db.Interview.update(
         {
-          interviewHistory: {
-            chatHistory: interview.chatHistory,
-            scores: interview.scores,
-            finalReport: finalReport,
-          },
+          chatHistory: interview.chatHistory,
+          scores: interview.scores,
+          finalReport: finalReport,
+          overallScore: finalReport.overallScore || 0,
         },
-        { where: { id: req.user.id } }
+        { where: { id: interview.dbInterviewId } }
       );
-      console.log(`💾 Saved final interview evaluation to DB for user ID: ${req.user.id}`);
+      console.log(`💾 Saved final interview evaluation to DB for Interview ID: ${interview.dbInterviewId}`);
     }
 
     return res.status(200).json(new ApiResponse(200, finalReport, "Interview ended successfully"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 6. Get User Resumes List
+export const getUserResumes = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, "Authentication required.");
+    }
+    const list = await db.Resume.findAll({
+      where: { userId: req.user.id },
+      order: [["createdAt", "DESC"]],
+    });
+    return res.status(200).json(new ApiResponse(200, list, "Resumes list retrieved successfully"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 7. Get User Interviews List
+export const getUserInterviews = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, "Authentication required.");
+    }
+    const list = await db.Interview.findAll({
+      where: { userId: req.user.id },
+      order: [["createdAt", "DESC"]],
+    });
+    return res.status(200).json(new ApiResponse(200, list, "Interviews list retrieved successfully"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 8. Get Specific Interview Report
+export const getInterviewReport = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, "Authentication required.");
+    }
+    const { id } = req.params;
+    const reportData = await db.Interview.findOne({
+      where: { id, userId: req.user.id },
+    });
+    if (!reportData) {
+      throw new ApiError(404, "Interview report not found.");
+    }
+    return res.status(200).json(new ApiResponse(200, reportData, "Interview report retrieved successfully"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 9. Delete Resume
+export const deleteUserResume = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, "Authentication required.");
+    }
+    const { id } = req.params;
+    const resume = await db.Resume.findOne({
+      where: { id, userId: req.user.id },
+    });
+    if (!resume) {
+      throw new ApiError(404, "Resume not found.");
+    }
+
+    const publicId = cloudinaryService.getPublicIdFromUrl(resume.resumeUrl);
+    if (publicId) {
+      try {
+        await cloudinaryService.deleteResume(publicId);
+      } catch (e) {
+        console.warn("⚠️ Non-blocking warning: Failed to delete Cloudinary asset:", e.message);
+      }
+    }
+
+    await resume.destroy();
+    return res.status(200).json(new ApiResponse(200, {}, "Resume deleted successfully"));
   } catch (err) {
     next(err);
   }

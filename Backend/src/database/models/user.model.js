@@ -84,6 +84,16 @@ export default (sequelize) => {
         type: DataTypes.JSON,
         allowNull: true,
       },
+
+      phone: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+
+      bio: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
     {
       tableName: "users",
@@ -92,9 +102,8 @@ export default (sequelize) => {
   );
 
   User.associate = (db) => {
-    // Example relations (future use)
-    // User.hasMany(db.Resume, { foreignKey: "userId" });
-    // User.hasMany(db.Batch, { foreignKey: "createdBy" });
+    User.hasMany(db.Resume, { foreignKey: "userId", as: "resumes", onDelete: "CASCADE" });
+    User.hasMany(db.Interview, { foreignKey: "userId", as: "interviews", onDelete: "CASCADE" });
   };
 
   return User;

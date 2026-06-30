@@ -5,8 +5,10 @@ import ModeSelection from "./pages/ModeSelection";
 import Interview from "./pages/Interview";
 import Report from "./pages/Report";
 import Login from "./pages/Login";
+import History from "./pages/History";
+import Settings from "./pages/Settings";
 
-type PageType = "home" | "analysis" | "mode_selection" | "interview" | "report" | "login";
+type PageType = "home" | "analysis" | "mode_selection" | "interview" | "report" | "login" | "history" | "settings";
 
 interface ChatMessage {
   role: "interviewer" | "candidate";
@@ -35,6 +37,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [interviewMode, setInterviewMode] = useState<"text" | "voice">("text");
+  const [dashboardTab, setDashboardTab] = useState<"overview" | "uploads">("overview");
 
   // User Auth States
   const [user, setUser] = useState<any | null>(null);
@@ -219,7 +222,7 @@ export default function App() {
       const res = await fetch(`${BACKEND_URL}/start-interview`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ sessionId }),
+        body: JSON.stringify({ sessionId, mode }),
       });
 
       const resJson = await res.json();
@@ -387,177 +390,406 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#0F172A] text-white font-sans antialiased flex flex-col">
-      
-      {/* ── Navigation Header ── */}
-      <nav className="sticky top-0 z-50 bg-[#0F172A]/85 backdrop-blur-md border-b border-white/5 print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={handleRestart}>
-            <span className="text-xl font-black tracking-wider bg-gradient-to-r from-violet-400 via-fuchsia-400 to-indigo-400 text-transparent bg-clip-text">
-              RESUMEAI.COACH
-            </span>
-            <span className="bg-violet-500/10 border border-violet-500/30 text-violet-400 text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full">
-              PRO
-            </span>
-          </div>
+  const handleLoadResume = (resume: any) => {
+    setSessionId(resume.id);
+    setFileName(resume.fileName);
+    setAnalysis(resume.resumeAnalysis);
+    setPage("analysis");
+  };
 
-          <div className="flex items-center gap-4">
-            {/* Authenticated user status */}
-            {user ? (
-              <div className="flex items-center gap-3">
-                <span className="hidden sm:inline-block text-xs font-semibold text-slate-300 bg-slate-800/40 border border-white/5 px-3.5 py-1.5 rounded-xl">
-                  👤 {user.name} ({user.role === "admin" ? "Admin" : "User"})
+  const handleViewReport = (reportData: any) => {
+    setReport(reportData);
+    setPage("report");
+  };
+
+  const handleUpdateUser = (updatedUser: any) => {
+    setUser(updatedUser);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F4F6FA] text-slate-800 font-sans antialiased flex flex-col">
+      {/* Loading Overlay */}
+      {loadingText && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/70 backdrop-blur-sm flex flex-col items-center justify-center p-4 print:hidden">
+          <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 border-t-indigo-600 animate-spin mb-4" />
+          <h3 className="text-sm font-bold text-white text-center">{loadingText}</h3>
+          <p className="text-[10px] text-slate-400 mt-1">Please keep this tab open</p>
+        </div>
+      )}
+
+      {/* ── CASE 1: LANDING PAGE FOR GUEST ── */}
+      {page === "home" && !user ? (
+        <div className="flex-1 flex flex-col bg-white">
+          <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 cursor-pointer" onClick={handleRestart}>
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
+                  AI
+                </div>
+                <span className="text-sm font-black tracking-wider text-slate-900 uppercase">
+                  ResumeAI.Coach
                 </span>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs bg-red-950/40 text-red-400 hover:text-red-300 border border-red-500/20 px-3 py-1.5 rounded-xl font-medium cursor-pointer transition-colors"
-                >
-                  Log Out
-                </button>
               </div>
-            ) : (
-              <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-8 text-xs font-bold text-slate-500">
+                <a href="#features" className="hover:text-slate-900 transition-colors">Features</a>
+                <a href="#how-it-works" className="hover:text-slate-900 transition-colors">How It Works</a>
+                <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
+                <a href="#blog" className="hover:text-slate-900 transition-colors">Blog</a>
+              </div>
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
                     setAuthWarning(null);
                     setPage("login");
                   }}
-                  className="text-xs bg-violet-600/90 hover:bg-violet-600 text-white font-semibold px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer"
+                  className="text-xs font-bold text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors cursor-pointer"
                 >
-                  Sign In / Register
+                  Login
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthWarning(null);
+                    setPage("login");
+                  }}
+                  className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  Get Started
                 </button>
               </div>
-            )}
+            </div>
+          </nav>
 
-            {page !== "home" && (
-              <button
-                onClick={handleRestart}
-                className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 transition-colors px-3 py-1.5 rounded-xl font-medium cursor-pointer"
-              >
-                Reset
-              </button>
+          <main className="flex-1 flex flex-col justify-center">
+            {errorMsg && (
+              <div className="max-w-4xl mx-auto w-full px-4 mt-6">
+                <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl flex items-start gap-3">
+                  <span className="text-sm">⚠️</span>
+                  <div className="flex-1 text-xs">
+                    <h4 className="font-bold">System Alert</h4>
+                    <p className="mt-0.5 text-red-600">{errorMsg}</p>
+                  </div>
+                  <button onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
+                </div>
+              </div>
             )}
-          </div>
+            <Home
+              onUploadStart={handleUploadStart}
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+              token={token}
+              user={user}
+              activeTab={dashboardTab}
+              setActiveTab={setDashboardTab}
+              onLoadResume={handleLoadResume}
+              onStartInterview={handleStartInterviewClick}
+            />
+          </main>
+
+          <footer className="border-t border-slate-100 py-8 bg-slate-50 text-xs text-slate-400">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="font-black uppercase tracking-wider text-slate-500">ResumeAI.Coach</span>
+              <span>© {new Date().getFullYear()} ResumeAI. All rights reserved.</span>
+              <span>Built for premium MVP presentation</span>
+            </div>
+          </footer>
         </div>
-      </nav>
-
-      {/* ── Main Workspace ── */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col justify-center print:py-0">
-        
-        {/* Loading Overlay */}
-        {loadingText && (
-          <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 print:hidden">
-            <div className="w-16 h-16 rounded-full border-4 border-violet-500/20 border-t-violet-500 animate-spin mb-4" />
-            <h3 className="text-lg font-bold text-white text-center">{loadingText}</h3>
-            <p className="text-sm text-slate-400 mt-1">Please keep this tab open</p>
-          </div>
-        )}
-
-        {/* Error Banner */}
-        {errorMsg && (
-          <div className="mb-6 bg-red-500/10 border border-red-500/30 text-red-200 p-4 rounded-xl flex items-start gap-3 max-w-2xl mx-auto w-full print:hidden">
-            <span className="text-xl">⚠️</span>
-            <div className="flex-1">
-              <h4 className="font-bold text-sm">System Alert</h4>
-              <p className="text-xs text-red-300/90 mt-1">{errorMsg}</p>
+      ) : page === "login" ? (
+        /* ── CASE 2: LOGIN / REGISTER CARD ── */
+        <div className="flex-1 flex flex-col justify-center py-12 px-4 bg-slate-50">
+          <div className="max-w-md mx-auto w-full flex items-center justify-center gap-2 mb-6 cursor-pointer" onClick={handleRestart}>
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
+              AI
             </div>
-            <button onClick={() => setErrorMsg(null)} className="text-red-300 hover:text-red-100 text-xs cursor-pointer">
-              ✕
-            </button>
+            <span className="text-base font-black tracking-wider text-slate-900 uppercase">
+              ResumeAI.Coach
+            </span>
           </div>
-        )}
-
-        {/* Stored resume notice card inside dashboard */}
-        {user && user.resumeUrl && page === "home" && (
-          <div className="mb-8 bg-violet-950/20 border border-violet-500/20 rounded-2xl p-6 text-center max-w-xl mx-auto animate-fade-in">
-            <span className="text-lg">📁</span>
-            <h4 className="font-bold text-sm text-slate-200 mt-2">Resume Found on Profile</h4>
-            <p className="text-xs text-slate-400 mt-1">We loaded your saved resume. You can jump directly to the analysis board or start a mock interview.</p>
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <button
-                onClick={() => setPage("analysis")}
-                className="bg-violet-600 hover:bg-violet-500 text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                View Analysis
-              </button>
-              <button
-                onClick={handleStartInterviewClick}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/5 font-bold px-4 py-2 rounded-xl text-xs cursor-pointer transition-colors"
-              >
-                Start Interview
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Render View Components dynamically */}
-        {page === "home" && (
-          <Home
-            onUploadStart={handleUploadStart}
-            onUploadSuccess={handleUploadSuccess}
-            onUploadError={handleUploadError}
-            token={token}
-          />
-        )}
-
-        {page === "analysis" && analysis && (
-          <Analysis
-            analysis={analysis}
-            onStartInterview={handleStartInterviewClick}
-            onBack={handleRestart}
-          />
-        )}
-
-        {page === "mode_selection" && (
-          <ModeSelection
-            onStartInterview={handleStartInterview}
-            onBack={() => setPage("analysis")}
-          />
-        )}
-
-        {page === "interview" && (
-          <Interview
-            mode={interviewMode}
-            chatMessages={chatMessages}
-            userAnswer={userAnswer}
-            setUserAnswer={setUserAnswer}
-            isSubmittingAnswer={isSubmittingAnswer}
-            latestFeedback={latestFeedback}
-            onSubmitAnswer={handleSubmitAnswer}
-            onEndInterview={handleEndInterview}
-            chatEndRef={chatEndRef}
-          />
-        )}
-
-        {page === "report" && report && (
-          <Report
-            report={report}
-            onRestart={handleRestart}
-            isGuest={!user}
-          />
-        )}
-
-        {page === "login" && (
           <Login
             onAuthSuccess={handleAuthSuccess}
             onBack={() => setPage(analysis ? "analysis" : "home")}
             redirectWarning={authWarning}
           />
-        )}
+        </div>
+      ) : (
+        /* ── CASE 3: AUTHENTICATED APP / SIDEBAR VIEW ── */
+        <div className="flex-1 flex min-h-screen text-slate-800">
+          {/* Left Sidebar Layout */}
+          <aside className="w-64 bg-[#0F111A] text-slate-400 flex flex-col justify-between p-4 flex-shrink-0 border-r border-slate-900 print:hidden">
+            <div className="flex flex-col gap-6">
+              {/* Logo */}
+              <div className="flex items-center gap-2.5 px-3 py-2 cursor-pointer" onClick={handleRestart}>
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
+                  AI
+                </div>
+                <span className="text-sm font-black tracking-wider text-white uppercase">
+                  ResumeAI.Coach
+                </span>
+                <span className="bg-indigo-500/20 text-indigo-400 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                  PRO
+                </span>
+              </div>
 
-      </main>
+              {/* Navigation Menu */}
+              <nav className="flex flex-col gap-1">
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      setAuthWarning("Please login to view dashboard stats.");
+                      setPage("login");
+                    } else {
+                      setDashboardTab("overview");
+                      setPage("home");
+                    }
+                  }}
+                  className={`sidebar-link ${page === "home" && dashboardTab === "overview" ? "sidebar-link-active" : ""}`}
+                >
+                  <span className="text-sm">📊</span>
+                  <span>Dashboard</span>
+                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
+                </button>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-white/5 py-8 mt-12 bg-slate-950/30 print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-          <span className="font-black tracking-widest uppercase text-slate-400">ResumeAI.Coach</span>
-          <span>© {new Date().getFullYear()} ResumeAI. All rights reserved.</span>
-          <div className="flex gap-4">
-            <span className="text-slate-600">Built for MVP presentation</span>
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      setAuthWarning("Please login to view your resumes.");
+                      setPage("login");
+                    } else {
+                      setDashboardTab("uploads");
+                      setPage("home");
+                    }
+                  }}
+                  className={`sidebar-link ${page === "home" && dashboardTab === "uploads" ? "sidebar-link-active" : ""}`}
+                >
+                  <span className="text-sm">📁</span>
+                  <span>My Resumes</span>
+                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (analysis) setPage("analysis");
+                  }}
+                  disabled={!analysis}
+                  className={`sidebar-link ${page === "analysis" ? "sidebar-link-active" : ""} disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  <span className="text-sm">⚡</span>
+                  <span>AI Analysis</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (analysis) {
+                      setPage("mode_selection");
+                    } else {
+                      alert("Please upload your resume to start an interview session.");
+                    }
+                  }}
+                  className={`sidebar-link ${page === "mode_selection" || page === "interview" ? "sidebar-link-active" : ""}`}
+                >
+                  <span className="text-sm">🎙️</span>
+                  <span>Mock Interview</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      setAuthWarning("Please login to access interview history.");
+                      setPage("login");
+                    } else {
+                      setPage("history");
+                    }
+                  }}
+                  className={`sidebar-link ${page === "history" ? "sidebar-link-active" : ""}`}
+                >
+                  <span className="text-sm">📅</span>
+                  <span>Interview History</span>
+                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (report) setPage("report");
+                  }}
+                  disabled={!report}
+                  className={`sidebar-link ${page === "report" ? "sidebar-link-active" : ""} disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  <span className="text-sm">💡</span>
+                  <span>Reports</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      setAuthWarning("Please login to access settings.");
+                      setPage("login");
+                    } else {
+                      setPage("settings");
+                    }
+                  }}
+                  className={`sidebar-link ${page === "settings" ? "sidebar-link-active" : ""}`}
+                >
+                  <span className="text-sm">⚙️</span>
+                  <span>Account Settings</span>
+                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
+                </button>
+              </nav>
+            </div>
+
+            {/* Logout panel */}
+            <div className="border-t border-slate-900 pt-4 flex flex-col gap-3">
+              {user ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 px-3 py-1 text-slate-300">
+                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs border border-slate-700">
+                      {user.name[0].toUpperCase()}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold truncate">{user.name}</span>
+                      <span className="text-[9px] text-slate-500 uppercase tracking-widest">{user.role}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 transition-colors font-bold cursor-pointer"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setPage("login")}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs text-center cursor-pointer transition-colors shadow-md shadow-indigo-600/10"
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+          </aside>
+
+          {/* Right Main Content */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Top Header Panel */}
+            <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 print:hidden">
+              <h2 className="text-sm font-black text-slate-900 capitalize tracking-wide">
+                {page === "home"
+                  ? dashboardTab === "overview"
+                    ? "Dashboard"
+                    : "My Resumes"
+                  : page === "mode_selection"
+                  ? "Select Mock Mode"
+                  : page === "interview"
+                  ? "Live Mock Interview"
+                  : page === "report"
+                  ? "Interview Report"
+                  : page === "history"
+                  ? "Interview History"
+                  : page === "settings"
+                  ? "Profile Settings"
+                  : page}
+              </h2>
+
+              <div className="flex items-center gap-4">
+                <button className="bg-indigo-50 hover:bg-indigo-100/70 border border-indigo-100 text-indigo-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors">
+                  Upgrade Plan
+                </button>
+
+                {user && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs border border-slate-200">
+                      {user.name[0].toUpperCase()}
+                    </div>
+                    <span className="text-xs font-semibold text-slate-700 hidden sm:inline-block">
+                      {user.name}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </header>
+
+            {/* Main Content Scroll Area */}
+            <main className="flex-1 p-6 overflow-y-auto">
+              {errorMsg && (
+                <div className="mb-6 bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl flex items-start gap-3 max-w-2xl mx-auto w-full print:hidden">
+                  <span className="text-sm">⚠️</span>
+                  <div className="flex-1 text-xs">
+                    <h4 className="font-bold">System Alert</h4>
+                    <p className="mt-0.5 text-red-600">{errorMsg}</p>
+                  </div>
+                  <button onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
+                </div>
+              )}
+
+              {/* Render View Components */}
+              {page === "home" && (
+                <Home
+                  onUploadStart={handleUploadStart}
+                  onUploadSuccess={handleUploadSuccess}
+                  onUploadError={handleUploadError}
+                  token={token}
+                  user={user}
+                  activeTab={dashboardTab}
+                  setActiveTab={setDashboardTab}
+                  onLoadResume={handleLoadResume}
+                  onStartInterview={handleStartInterviewClick}
+                />
+              )}
+
+              {page === "analysis" && analysis && (
+                <Analysis
+                  analysis={analysis}
+                  onStartInterview={handleStartInterviewClick}
+                  onBack={handleRestart}
+                />
+              )}
+
+              {page === "mode_selection" && (
+                <ModeSelection
+                  onStartInterview={handleStartInterview}
+                  onBack={() => setPage("analysis")}
+                />
+              )}
+
+              {page === "interview" && (
+                <Interview
+                  mode={interviewMode}
+                  chatMessages={chatMessages}
+                  userAnswer={userAnswer}
+                  setUserAnswer={setUserAnswer}
+                  isSubmittingAnswer={isSubmittingAnswer}
+                  latestFeedback={latestFeedback}
+                  onSubmitAnswer={handleSubmitAnswer}
+                  onEndInterview={handleEndInterview}
+                  chatEndRef={chatEndRef}
+                />
+              )}
+
+              {page === "report" && report && (
+                <Report
+                  report={report}
+                  onRestart={handleRestart}
+                  isGuest={!user}
+                />
+              )}
+
+              {page === "history" && (
+                <History
+                  token={token}
+                  onViewReport={handleViewReport}
+                  setPage={setPage}
+                />
+              )}
+
+              {page === "settings" && (
+                <Settings
+                  token={token}
+                  user={user}
+                  onUpdateUser={handleUpdateUser}
+                />
+              )}
+            </main>
           </div>
         </div>
-      </footer>
+      )}
     </div>
   );
 }

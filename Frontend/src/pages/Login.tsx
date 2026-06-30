@@ -15,6 +15,8 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   // UX states
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,18 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    if (isSignUp) {
+      if (password !== confirmPassword) {
+        setErrorMsg("Passwords do not match.");
+        return;
+      }
+      if (!agreeTerms) {
+        setErrorMsg("You must agree to the Terms & Conditions.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     const url = isSignUp ? `${BACKEND_URL}/auth/register` : `${BACKEND_URL}/auth/login`;
@@ -54,68 +68,63 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
   };
 
   return (
-    <div className="max-w-md mx-auto w-full py-8 px-4 animate-fade-in">
-      
+    <div className="w-full max-w-md mx-auto py-4 px-4 animate-fade-in text-slate-800">
       {/* Back button */}
       <button
         onClick={onBack}
-        className="text-slate-400 hover:text-white transition-colors text-xs font-semibold flex items-center gap-1.5 mb-6 cursor-pointer"
+        className="text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold flex items-center gap-1.5 mb-6 cursor-pointer border-none bg-transparent"
       >
-        <span>←</span> Go Back
+        <span>←</span> Back to home
       </button>
 
-      {/* Glassmorphism Card */}
-      <div className="bg-glass rounded-2xl border border-white/5 p-8 shadow-2xl relative overflow-hidden">
-        {/* Glow background circles */}
-        <div className="absolute -top-10 -left-10 w-24 h-24 bg-violet-600/10 rounded-full blur-xl pointer-events-none" />
-        <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-indigo-600/10 rounded-full blur-xl pointer-events-none" />
-
+      {/* Modern Card */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl relative overflow-hidden">
         {/* Warning notification banner if guest got redirected */}
         {redirectWarning && (
-          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs px-4 py-3 rounded-xl mb-6 text-center leading-relaxed">
+          <div className="bg-amber-50 border border-amber-100 text-amber-700 text-xs px-4 py-3 rounded-xl mb-6 text-center leading-relaxed font-semibold">
             🔔 {redirectWarning}
           </div>
         )}
 
         {/* Header */}
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-black tracking-tight">
-            {isSignUp ? "Create your Account" : "Welcome Back"}
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+            {isSignUp ? "Create Account 🚀" : "Welcome Back 👋"}
           </h2>
-          <p className="text-slate-400 text-xs mt-1.5">
+          <p className="text-slate-500 text-xs mt-1.5 font-medium">
             {isSignUp 
-              ? "Sign up to persist resumes, analysis reports, and interview histories" 
-              : "Sign in to access advanced mock interviews and histories"}
+              ? "Start your AI Interview journey" 
+              : "Login to continue your journey"}
           </p>
         </div>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-xs p-3.5 rounded-xl mb-5 text-center">
+          <div className="bg-red-50 border border-red-100 text-red-600 text-xs p-3.5 rounded-xl mb-5 text-center font-bold">
             ⚠️ {errorMsg}
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 font-semibold text-xs">
           {isSignUp && (
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Name
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                Full Name
               </label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Full Name"
-                className="w-full bg-slate-950/80 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+                placeholder="Enter your full name"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
               Email Address
             </label>
             <input
@@ -123,50 +132,107 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@company.com"
-              className="w-full bg-slate-950/80 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              placeholder="Enter your email"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-              Password
-            </label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Password
+              </label>
+              {!isSignUp && (
+                <button
+                  type="button"
+                  className="text-[10px] text-indigo-600 hover:underline border-none bg-transparent cursor-pointer font-bold"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full bg-slate-950/80 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+              placeholder="Enter password"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
             />
           </div>
+
+          {isSignUp && (
+            <>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your password"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="agreeTerms"
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 border-slate-350 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                <label htmlFor="agreeTerms" className="text-[11px] text-slate-500 font-semibold cursor-pointer select-none">
+                  I agree to the <span className="text-indigo-650 hover:underline">Terms & Conditions</span>
+                </label>
+              </div>
+            </>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg hover:shadow-violet-600/30 text-xs hover:scale-[1.01] cursor-pointer mt-2 disabled:bg-slate-800 disabled:cursor-not-allowed"
+            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/10 text-xs hover:scale-[1.01] cursor-pointer mt-2 disabled:bg-slate-400"
           >
-            {loading ? "Authenticating..." : isSignUp ? "Create Account" : "Sign In"}
+            {loading ? "Authenticating..." : isSignUp ? "Register" : "Login"}
           </button>
         </form>
 
+        {/* Social Continue Divider */}
+        <div className="my-6 flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+          <div className="w-[30%] h-[1px] bg-slate-100" />
+          <span>Or continue with</span>
+          <div className="w-[30%] h-[1px] bg-slate-100" />
+        </div>
+
+        {/* Social Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <button className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors">
+            <span className="text-sm">🌐</span> Google
+          </button>
+          <button className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors">
+            <span className="text-sm">🐙</span> GitHub
+          </button>
+        </div>
+
         {/* Toggle link */}
-        <div className="text-center mt-6 pt-4 border-t border-white/5">
-          <p className="text-xs text-slate-500">
-            {isSignUp ? "Already have an account?" : "New to the platform?"}{" "}
+        <div className="text-center mt-6 pt-4 border-t border-slate-100">
+          <p className="text-xs text-slate-500 font-medium">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
               onClick={() => {
                 setErrorMsg(null);
                 setIsSignUp(!isSignUp);
               }}
-              className="text-violet-400 hover:text-violet-300 font-bold underline transition-colors cursor-pointer bg-transparent border-none"
+              className="text-indigo-600 hover:text-indigo-500 font-bold underline transition-colors cursor-pointer bg-transparent border-none"
             >
-              {isSignUp ? "Sign In instead" : "Create Account now"}
+              {isSignUp ? "Login here" : "Register here"}
             </button>
           </p>
         </div>
-
       </div>
     </div>
   );
