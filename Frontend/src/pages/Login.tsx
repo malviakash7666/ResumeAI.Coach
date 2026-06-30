@@ -6,7 +6,7 @@ interface LoginProps {
   redirectWarning?: string | null;
 }
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "http://localhost:5000").replace(/\/$/, "");
 
 export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginProps) {
   const [isSignUp, setIsSignUp] = useState(false);

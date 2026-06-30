@@ -28,7 +28,7 @@ interface LatestFeedback {
   problemSolvingScore?: number;
 }
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "http://localhost:5000").replace(/\/$/, "");
 
 export default function App() {
   const [page, setPage] = useState<PageType>("home");

@@ -8,6 +8,11 @@ import resumeRouter from "./src/modules/resume.routes.js";
 import authRouter from "./src/routes/auth.routes.js";
 
 dotenv.config();
+console.log({
+  cloud: process.env.CLOUDINARY_CLOUD_NAME,
+  key: process.env.CLOUDINARY_API_KEY,
+  secretExists: !!process.env.CLOUDINARY_API_SECRET,
+});
 
 const app = express();
 
@@ -108,4 +113,4 @@ process.on("SIGINT", async () => {
   }
 
   process.exit(0);
-});
+});
