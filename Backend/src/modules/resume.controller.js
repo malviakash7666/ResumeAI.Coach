@@ -21,8 +21,7 @@ const generateSessionId = () => {
 async function callGroqAPI(messages, responseFormat = "json_object") {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey || apiKey.trim() === "" || apiKey === "your_groq_api_key_here") {
-    console.warn("⚠️ GROQ_API_KEY is missing or default. Falling back to simulated AI response.");
-    throw new Error("API_KEY_MISSING");
+    throw new Error("Groq API Key is not configured in the backend environment variables.");
   }
 
   try {
@@ -59,240 +58,6 @@ async function callGroqAPI(messages, responseFormat = "json_object") {
   }
 }
 
-// Helper: Intelligent Fallback Generator based on resume keywords
-function generateFallbackAnalysis(text) {
-  const lowercaseText = text.toLowerCase();
-  const detectedSkills = [];
-  
-  // Skill detection
-  const skillKeywords = {
-    "React": ["react", "next.js", "nextjs", "redux"],
-    "TypeScript": ["typescript", "ts"],
-    "JavaScript": ["javascript", "js", "es6"],
-    "Node.js": ["node", "express", "backend"],
-    "Python": ["python", "django", "flask", "pytorch", "tensorflow"],
-    "Java": ["java", "spring", "springboot"],
-    "SQL / PostgreSQL": ["sql", "postgres", "mysql", "database"],
-    "MongoDB": ["mongo", "nosql"],
-    "AWS": ["aws", "s3", "ec2", "lambda"],
-    "Docker / Kubernetes": ["docker", "kubernetes", "k8s", "devops", "containers"],
-    "HTML / CSS / Tailwind": ["html", "css", "tailwind", "sass"],
-    "Git": ["git", "github", "gitlab"],
-  };
-
-  for (const [skill, keywords] of Object.entries(skillKeywords)) {
-    if (keywords.some(kw => lowercaseText.includes(kw))) {
-      detectedSkills.push(skill);
-    }
-  }
-
-  if (detectedSkills.length === 0) {
-    detectedSkills.push("JavaScript", "HTML", "CSS", "Git");
-  }
-
-  // Experience level detection
-  let experienceLevel = "Entry Level";
-  if (lowercaseText.includes("senior") || lowercaseText.includes("lead") || lowercaseText.includes("architect")) {
-    experienceLevel = "Senior Level";
-  } else if (lowercaseText.includes("mid") || lowercaseText.includes("years experience") || lowercaseText.includes("2 years") || lowercaseText.includes("3 years")) {
-    experienceLevel = "Mid Level";
-  }
-
-  // Job role suggestions based on skills
-  const suggestedRoles = [];
-  if (detectedSkills.includes("React") || detectedSkills.includes("HTML / CSS / Tailwind")) {
-    suggestedRoles.push("Frontend Engineer");
-  }
-  if (detectedSkills.includes("Node.js") || detectedSkills.includes("Python") || detectedSkills.includes("Java")) {
-    suggestedRoles.push("Backend Engineer");
-  }
-  if (suggestedRoles.length === 2) {
-    suggestedRoles.push("Full Stack Engineer");
-  }
-  if (detectedSkills.includes("Docker / Kubernetes") || detectedSkills.includes("AWS")) {
-    suggestedRoles.push("DevOps / Cloud Engineer");
-  }
-  if (suggestedRoles.length === 0) {
-    suggestedRoles.push("Software Engineer");
-  }
-
-  // Weak areas
-  const weakAreas = [];
-  if (!detectedSkills.includes("TypeScript")) weakAreas.push("Type safety with TypeScript");
-  if (!detectedSkills.includes("Docker / Kubernetes")) weakAreas.push("Containerization and CI/CD pipelines");
-  if (!detectedSkills.includes("SQL / PostgreSQL")) weakAreas.push("Database query optimizations");
-  if (!detectedSkills.includes("AWS")) weakAreas.push("Cloud deployment and infrastructure hosting");
-  if (weakAreas.length === 0) {
-    weakAreas.push("System design scalability patterns", "Automated integration testing");
-  }
-
-  // Difficulty level
-  const difficulty = experienceLevel === "Senior Level" ? "Advanced" : experienceLevel === "Mid Level" ? "Intermediate" : "Beginner";
-
-  return {
-    skills: detectedSkills,
-    experienceLevel,
-    weakAreas,
-    suggestedRoles,
-    difficulty,
-  };
-}
-
-// Fallback: Generate mock interview question based on resume skills
-function generateFallbackQuestion(skills, index) {
-  const reactQuestions = [
-    "Can you explain the difference between state and props in React, and how React 19 changes state management?",
-    "What are React Hooks? Explain how useEffect cleanups work and how to prevent memory leaks.",
-    "Explain how React's Virtual DOM works and when should one use useMemo or useCallback for performance tuning.",
-  ];
-  const nodeQuestions = [
-    "What is the Event Loop in Node.js, and how does Node.js handle asynchronous non-blocking I/O operations?",
-    "Explain how middleware works in Express.js. How do you implement global error handler middleware?",
-    "How do you secure a REST API built with Node.js/Express? Mention headers, rate limiting, and JWT storage.",
-  ];
-  const generalQuestions = [
-    "Explain the difference between SQL and NoSQL databases. In which scenario would you choose MongoDB over PostgreSQL?",
-    "Describe the lifecycle of an HTTP request from entering the URL in the browser to page load.",
-    "What is REST? How does it differ from GraphQL, and what are the pros/cons of each?",
-    "Explain the basics of containerization. Why use Docker, and what is the difference between an image and a container?",
-  ];
-
-  // Pick questions based on skills
-  let pools = [...generalQuestions];
-  if (skills.includes("React")) pools = [...reactQuestions, ...pools];
-  if (skills.includes("Node.js")) pools = [...nodeQuestions, ...pools];
-
-  // Ensure index is within range
-  const qIndex = index % pools.length;
-  return pools[qIndex];
-}
-
-// Fallback: Grade user's answer
-function gradeFallbackAnswer(question, answer) {
-  const length = answer.trim().length;
-  let score = 5;
-  let feedback = "";
-
-  if (length < 15) {
-    score = 3;
-    feedback = "Your answer is very brief. Try to explain the concepts in more detail with real-world examples or code implementation details.";
-  } else if (length < 50) {
-    score = 6;
-    feedback = "Good start, but your answer lacks depth. Explain the underlying architecture, pros/cons, and how it is implemented.";
-  } else {
-    score = 8 + Math.floor(Math.random() * 3); // 8, 9, or 10
-    if (score > 10) score = 10;
-    feedback = "Excellent response! You clearly understand the core concepts and explained the technical components and trade-offs correctly.";
-  }
-
-  const technicalScore = score;
-  const communicationScore = Math.min(10, score + (length > 100 ? 1 : 0));
-  const confidenceScore = Math.min(10, score + (length > 85 ? 1 : -1));
-  const problemSolvingScore = Math.min(10, score + (length > 120 ? 1 : 0));
-
-  return {
-    feedback,
-    score,
-    technicalScore,
-    communicationScore,
-    confidenceScore,
-    problemSolvingScore
-  };
-}
-
-// Fallback: Generate final report
-function generateFallbackReport(skills, scores, chatHistory) {
-  let totalScore = 0;
-  let totalTech = 0;
-  let totalComm = 0;
-  let totalConf = 0;
-
-  scores.forEach(s => {
-    totalScore += s.score;
-    totalTech += s.technicalScore;
-    totalComm += s.communicationScore;
-    totalConf += s.confidenceScore || s.score;
-  });
-
-  const count = scores.length || 1;
-  const overallScore = Math.round((totalScore / count) * 10) / 10;
-  const technicalScore = Math.round((totalTech / count) * 10) / 10;
-  const communicationScore = Math.round((totalComm / count) * 10) / 10;
-  const confidenceScore = Math.round((totalConf / count) * 10) / 10;
-
-  const weakTopics = [];
-  if (skills.includes("React") && overallScore < 8) weakTopics.push("React Hooks & Performance Optimization");
-  if (skills.includes("Node.js") && overallScore < 8) weakTopics.push("Asynchronous Flow & Event Loop Mechanics");
-  weakTopics.push("System Scalability & Microservices Architecture", "Automated Testing & Coverage");
-
-  const strengths = [
-    "Clear communication when describing core framework hooks and design patterns.",
-    "Strong technical accuracy explaining asynchronous execution and I/O polling.",
-    "Confident and natural tone during verbal problem resolution."
-  ];
-
-  const weaknesses = [
-    "Brief responses when discussing database indexing and performance optimizations.",
-    "Lacks concrete metric figures when recounting previous project achievements."
-  ];
-
-  const recommendedTopics = [
-    "Database Indexing & Explain Plans",
-    "Redis Caching Implementations",
-    "API Security Best Practices (OWASP Top 10)"
-  ];
-
-  const idealAnswers = [
-    {
-      question: "Can you explain the difference between state and props in React?",
-      idealAnswer: "State represents local, mutable component data managed internally. Props are immutable parameters passed down by parent components to configure children."
-    },
-    {
-      question: "What is the Event Loop in Node.js?",
-      idealAnswer: "The Event Loop allows Node.js to perform non-blocking I/O operations by delegating tasks to the system kernel when possible, executing callback phases sequentially."
-    }
-  ];
-
-  const studyRoadmap = [
-    {
-      topic: "System Design and Scalability",
-      actionableSteps: [
-        "Study horizontal vs. vertical scaling, database partitioning, and caching tiers (Redis/Memcached).",
-        "Design a URL shortener or rate limiter to practice system architectures."
-      ],
-      estimatedTime: "1-2 weeks"
-    },
-    {
-      topic: "Deep Dive: Modern Framework internals",
-      actionableSteps: [
-        "Read about React Fiber architecture, concurrent rendering, and server-side state hydration.",
-        "Implement a custom mini-event-loop in vanilla JS to grasp libuv internals."
-      ],
-      estimatedTime: "1 week"
-    },
-    {
-      topic: "API Design & Security Guidelines",
-      actionableSteps: [
-        "Learn about OWASP Top 10 security vulnerabilities and implement CORS, Helmet, and rate limiting in Node.",
-        "Practice schema design using ORMs like Sequelize or Mongoose."
-      ],
-      estimatedTime: "1 week"
-    }
-  ];
-
-  return {
-    overallScore,
-    technicalScore,
-    communicationScore,
-    confidenceScore,
-    weakTopics,
-    strengths,
-    weaknesses,
-    recommendedTopics,
-    idealAnswers,
-    studyRoadmap
-  };
-}
 
 /* ==========================================
    ROUTE CONTROLLER EXPORTS
@@ -410,8 +175,7 @@ export const analyzeResume = async (req, res, next) => {
       const groqResponse = await callGroqAPI(messages, "json_object");
       analysisResult = JSON.parse(groqResponse);
     } catch (apiError) {
-      console.warn("⚠️ Groq API failed for analyzeResume, using fallback analysis generator:", apiError.message);
-      analysisResult = generateFallbackAnalysis(resumeText);
+      throw new ApiError(500, `AI Analysis failed: ${apiError.message}`);
     }
 
     sessions[sessionId].analysis = analysisResult;
@@ -480,8 +244,7 @@ export const startInterview = async (req, res, next) => {
       const parsed = JSON.parse(groqResponse);
       firstQuestion = parsed.question;
     } catch (apiError) {
-      console.warn("⚠️ Groq API failed for startInterview, using fallback question generator:", apiError.message);
-      firstQuestion = generateFallbackQuestion(analysis.skills, 0);
+      throw new ApiError(500, `Failed to generate interview question: ${apiError.message}`);
     }
 
     sessions[sessionId].interview.currentQuestion = firstQuestion;
@@ -567,8 +330,7 @@ export const chatInterview = async (req, res, next) => {
       const groqResponse = await callGroqAPI(messages, "json_object");
       grading = JSON.parse(groqResponse);
     } catch (apiError) {
-      console.warn("⚠️ Groq API failed for grading answer, using fallback grader:", apiError.message);
-      grading = gradeFallbackAnswer(currentQuestion, answer);
+      throw new ApiError(500, `Failed to grade answer: ${apiError.message}`);
     }
 
     // Save history and scores
@@ -605,8 +367,7 @@ export const chatInterview = async (req, res, next) => {
       const parsed = JSON.parse(groqResponse);
       nextQuestion = parsed.nextQuestion;
     } catch (apiError) {
-      console.warn("⚠️ Groq API failed for nextQuestion, using fallback question generator:", apiError.message);
-      nextQuestion = generateFallbackQuestion(analysis.skills, interview.questionCount);
+      throw new ApiError(500, `Failed to generate next question: ${apiError.message}`);
     }
 
     // Update state
@@ -713,8 +474,7 @@ export const endInterview = async (req, res, next) => {
       const groqResponse = await callGroqAPI(messages, "json_object");
       finalReport = JSON.parse(groqResponse);
     } catch (apiError) {
-      console.warn("⚠️ Groq API failed for endInterview report, using fallback report generator:", apiError.message);
-      finalReport = generateFallbackReport(analysis.skills, interview.scores, interview.chatHistory);
+      throw new ApiError(500, `Failed to generate final report: ${apiError.message}`);
     }
 
     sessions[sessionId].finalReport = finalReport;
