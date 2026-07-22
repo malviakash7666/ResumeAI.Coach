@@ -21,9 +21,14 @@ const app = express();
 
 /* ================= CORS ================= */
 
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",")
-  : [];
+const allowedOrigins = [];
+
+if (process.env.CORS_ORIGINS) {
+  allowedOrigins.push(...process.env.CORS_ORIGINS.split(",").map(o => o.trim()));
+}
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.trim());
+}
 
 app.use(
   cors({
