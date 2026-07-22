@@ -28,6 +28,7 @@ interface HomeProps {
   setActiveTab: (tab: "overview" | "uploads") => void;
   onLoadResume: (resume: any) => void;
   onStartInterview: () => void;
+  onScrollToSection?: (sectionId: string) => void;
 }
 
 export default function Home({
@@ -40,11 +41,13 @@ export default function Home({
   setActiveTab,
   onLoadResume,
   onStartInterview,
+  onScrollToSection,
 }: HomeProps) {
   const [dragging, setDragging] = useState(false);
   const [resumes, setResumes] = useState<ResumeData[]>([]);
   const [interviews, setInterviews] = useState<InterviewData[]>([]);
   const [loadingLists, setLoadingLists] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -204,40 +207,49 @@ export default function Home({
   if (!user) {
     return (
       <div className="w-full bg-white text-slate-800 animate-fade-in flex flex-col items-center">
-        {/* Hero Section */}
-        <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        {/* Section 1: Hero Section */}
+        <section id="home" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="text-center lg:text-left">
-            <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-600 border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 rounded-full mb-6">
-              ✦ AI-Powered Platform
+            <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-600 border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 rounded-full mb-6 shadow-xs">
+              ✦ AI-POWERED PLATFORM
             </span>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.08] tracking-tight text-slate-900 mb-6">
-              AI Resume Analyzer &
-              <br />
+              Optimize Your Resume with{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-500">
-                Mock Interview Coach
+                AI
               </span>
             </h1>
-            <p className="text-slate-500 text-sm sm:text-base leading-relaxed max-w-lg mx-auto lg:mx-0 mb-8">
-              Get your resume analyzed by AI recruiters, map your key weaknesses, and practice live mock interviews (via text or voice) with instant real-time scores and roadmaps.
+            <p className="text-slate-500 text-sm sm:text-base leading-relaxed max-w-lg mx-auto lg:mx-0 mb-8 font-medium">
+              Get ATS Score, identify missing keywords, improve your resume, and increase your interview chances.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
               <button
-                onClick={onStartInterview}
-                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-md shadow-indigo-600/10 text-xs cursor-pointer"
+                onClick={() => {
+                  const elem = document.getElementById("upload-section");
+                  if (elem) {
+                    elem.scrollIntoView({ behavior: "smooth" });
+                  } else {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-md shadow-indigo-600/10 text-xs cursor-pointer flex items-center justify-center gap-2"
               >
-                Get Started Free
+                <span>Analyze Resume</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
               </button>
-              <a
-                href="#how-it-works"
-                className="w-full sm:w-auto border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold px-8 py-3.5 rounded-xl transition-colors text-xs text-center"
+              <button
+                onClick={() => onScrollToSection ? onScrollToSection("features") : document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
+                className="w-full sm:w-auto border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold px-8 py-3.5 rounded-xl transition-colors text-xs text-center cursor-pointer"
               >
-                See How It Works
-              </a>
+                Learn More
+              </button>
             </div>
           </div>
 
-          {/* Right SVG Graphic */}
+          {/* Right SVG AI SaaS Graphic */}
           <div className="w-full flex justify-center">
             <div className="relative w-full max-w-[480px] bg-slate-50 border border-slate-200 rounded-3xl p-6 shadow-xl flex flex-col gap-4">
               {/* Fake Dashboard Top Header */}
@@ -262,30 +274,37 @@ export default function Home({
                 
                 {/* Right Interactive SVG Panel */}
                 <div className="flex-1 bg-white border border-slate-100 rounded-xl p-4 flex flex-col gap-3 shadow-inner relative overflow-hidden">
-                  <div className="w-16 h-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 text-[8px] rounded px-1.5 flex items-center justify-center font-bold">ANALYZING...</div>
+                  <div className="flex items-center justify-between">
+                    <div className="w-20 h-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 text-[8px] rounded px-1.5 flex items-center justify-center font-bold uppercase tracking-wider">
+                      ✨ ATS SCANNER
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                      92/100
+                    </span>
+                  </div>
                   
                   {/* Skill Nodes Flow */}
                   <svg className="w-full h-32 text-slate-200" viewBox="0 0 200 100">
                     <path d="M 30,50 L 80,25 L 140,25" fill="none" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="3,3" />
                     <path d="M 30,50 L 80,75 L 140,75" fill="none" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="3,3" />
-                    <path d="M 80,25 L 140,50" fill="none" stroke="#E2E8F0" strokeWidth="2" />
-                    <path d="M 80,75 L 140,50" fill="none" stroke="#E2E8F0" strokeWidth="2" />
+                    <path d="M 80,25 L 140,50" fill="none" stroke="#6366F1" strokeWidth="2" />
+                    <path d="M 80,75 L 140,50" fill="none" stroke="#10B981" strokeWidth="2" />
                     
                     {/* Circle Nodes */}
                     <circle cx="30" cy="50" r="12" fill="#E0E7FF" stroke="#4F46E5" strokeWidth="2" />
                     <circle cx="80" cy="25" r="10" fill="#ECFDF5" stroke="#10B981" strokeWidth="2" />
                     <circle cx="80" cy="75" r="10" fill="#FFFBEB" stroke="#F59E0B" strokeWidth="2" />
-                    <circle cx="140" cy="50" r="12" fill="#EEF2F6" stroke="#94A3B8" strokeWidth="2" />
+                    <circle cx="140" cy="50" r="14" fill="#EEF2F6" stroke="#6366F1" strokeWidth="2.5" />
                     
                     <text x="30" y="52" fontSize="6" fontWeight="bold" fill="#4F46E5" textAnchor="middle">PDF</text>
                     <text x="80" y="27" fontSize="5" fontWeight="bold" fill="#10B981" textAnchor="middle">REACT</text>
                     <text x="80" y="77" fontSize="5" fontWeight="bold" fill="#F59E0B" textAnchor="middle">NODE</text>
-                    <text x="140" y="52" fontSize="6" fontWeight="bold" fill="#475569" textAnchor="middle">AI</text>
+                    <text x="140" y="52" fontSize="7" fontWeight="bold" fill="#4F46E5" textAnchor="middle">AI ✦</text>
                   </svg>
                   
                   {/* Bottom Text bar */}
                   <div className="space-y-1.5 mt-auto">
-                    <div className="w-full h-2 bg-slate-100 rounded" />
+                    <div className="w-full h-2 bg-indigo-50 border border-indigo-100 rounded" />
                     <div className="w-3/4 h-2 bg-slate-100 rounded" />
                   </div>
                 </div>
@@ -294,33 +313,11 @@ export default function Home({
           </div>
         </section>
 
-        {/* Stats Row */}
-        <section className="w-full bg-slate-50 border-y border-slate-100 py-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-3xl font-black text-slate-900">10K+</div>
-              <div className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-wider">Resumes Analyzed</div>
-            </div>
-            <div>
-              <div className="text-3xl font-black text-slate-900">5K+</div>
-              <div className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-wider">Interviews Conducted</div>
-            </div>
-            <div>
-              <div className="text-3xl font-black text-slate-900">95%</div>
-              <div className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-wider">User Satisfaction</div>
-            </div>
-            <div>
-              <div className="text-3xl font-black text-slate-900">24/7</div>
-              <div className="text-[10px] uppercase font-bold text-slate-400 mt-1 tracking-wider">AI Availability</div>
-            </div>
-          </div>
-        </section>
-
-        {/* Quick Guest Upload Section */}
-        <section className="w-full max-w-xl mx-auto px-4 py-16 flex flex-col gap-6" id="try-it-now">
+        {/* Quick Guest Upload Widget Section */}
+        <section id="upload-section" className="w-full max-w-2xl mx-auto px-4 py-8 flex flex-col gap-4">
           <div className="text-center">
-            <h2 className="text-2xl font-black text-slate-900">Try it instantly as a Guest</h2>
-            <p className="text-slate-500 text-xs mt-1">Upload a PDF resume below. No credit card or registration required.</p>
+            <h3 className="text-xl font-black text-slate-900">Upload Your Resume for Instant Analysis</h3>
+            <p className="text-slate-500 text-xs mt-1">Select or drop a PDF file to analyze your ATS score & missing keywords.</p>
           </div>
           
           <div
@@ -328,10 +325,10 @@ export default function Home({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center gap-4 cursor-pointer transition-all ${
+            className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-all bg-white ${
               dragging
-                ? "border-indigo-500 bg-indigo-50 scale-[1.02]"
-                : "border-slate-200 hover:border-indigo-500/50 hover:bg-slate-50/50"
+                ? "border-indigo-500 bg-indigo-50/50 scale-[1.01] shadow-lg"
+                : "border-slate-200 hover:border-indigo-500/50 hover:bg-slate-50/50 shadow-sm"
             }`}
           >
             <input
@@ -343,21 +340,477 @@ export default function Home({
             />
             
             <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100 text-2xl text-indigo-600 shadow-inner">
-              ☁️
+              📄
             </div>
             
             <div className="text-center">
-              <p className="font-bold text-slate-800 text-sm">Drag & drop your PDF resume</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">or click to browse local files</p>
+              <p className="font-bold text-slate-800 text-sm">Drag & drop your PDF resume here</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">or click to browse from your device</p>
             </div>
             
-            <span className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[10px] py-2 px-5 rounded-lg transition-colors shadow-sm cursor-pointer">
-              Select File
+            <span className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-5 rounded-xl transition-colors shadow-sm cursor-pointer mt-1">
+              Browse Resume
             </span>
             
-            <p className="text-[9px] text-slate-400">Supported format: PDF up to 5MB</p>
+            <p className="text-[10px] text-slate-400">Supported format: PDF up to 5MB</p>
           </div>
         </section>
+
+        {/* Section 2: Features Section */}
+        <section id="features" className="w-full bg-slate-50/60 border-y border-slate-100 py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-600 border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 rounded-full mb-3 shadow-xs">
+                ✦ POWERFUL FEATURES
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                Everything You Need to Win Interviews
+              </h2>
+              <p className="text-slate-500 text-xs sm:text-sm mt-3 font-medium">
+                Engineered with advanced AI algorithms to evaluate, score, and optimize your resume for modern applicant tracking systems.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Feature 1 */}
+              <div className="card-white hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl text-indigo-600 mb-4">
+                    🎯
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-2">ATS Score Analysis</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Get an accurate ATS compatibility rating that shows how recruitment software parses your formatting, headers, and bullet points.
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature 2 */}
+              <div className="card-white hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-xl text-violet-600 mb-4">
+                    🤖
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-2">AI Resume Feedback</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Receive line-by-line feedback trained on top tech recruiter standards to refine impact phrasing and quantify achievements.
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="card-white hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-xl text-emerald-600 mb-4">
+                    🔍
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-2">Missing Keywords Detection</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Identify critical role-specific keywords and skill phrases missing from your profile that ATS screeners filter for.
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature 4 */}
+              <div className="card-white hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-xl text-amber-600 mb-4">
+                    📊
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-2">Skill Gap Analysis</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Uncover technical and soft skill gaps for targeted target roles, complete with actionable learning recommendations.
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature 5 */}
+              <div className="card-white hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-xl text-blue-600 mb-4">
+                    📝
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-2">Resume Summary</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Get clear executive summaries highlighting candidate strengths, experience level, and key selling points for recruiters.
+                  </p>
+                </div>
+              </div>
+
+              {/* Feature 6 */}
+              <div className="card-white hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl text-indigo-600 mb-4">
+                    💡
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base mb-2">Actionable AI Suggestions</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Get concrete, step-by-step suggestions on bullet point rewrites, active verbs, and layout fixes to maximize impact.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 3: How It Works Section */}
+        <section id="how-it-works" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-600 border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 rounded-full mb-3 shadow-xs">
+              ✦ STEP-BY-STEP PROCESS
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              How It Works
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-3 font-medium">
+              Four simple steps to transform your resume into an ATS-optimized, interview-ready application.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
+            {/* Step 1 */}
+            <div className="card-white relative flex flex-col items-start gap-4 hover:border-indigo-200 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-indigo-600/20">
+                01
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
+                  <span>📄</span> Upload Resume
+                </h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
+                  Drag and drop your PDF resume into our secure platform to start instant processing.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="card-white relative flex flex-col items-start gap-4 hover:border-indigo-200 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-indigo-600/20">
+                02
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
+                  <span>⚡</span> AI Extracts Resume Data
+                </h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
+                  Our advanced AI engine parses skills, experience, bullet points, education, and structure.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="card-white relative flex flex-col items-start gap-4 hover:border-indigo-200 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-indigo-600/20">
+                03
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
+                  <span>🧠</span> ATS + AI Analysis
+                </h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
+                  Deep scanning against corporate hiring algorithms, keyword density, and formatting rules.
+                </p>
+              </div>
+            </div>
+
+            {/* Step 4 */}
+            <div className="card-white relative flex flex-col items-start gap-4 hover:border-indigo-200 transition-all">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-indigo-600/20">
+                04
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm mb-1 flex items-center gap-1.5">
+                  <span>📥</span> Download Detailed Report
+                </h3>
+                <p className="text-slate-500 text-xs leading-relaxed">
+                  Get your full report with ATS scores, missing keyword lists, and actionable rewrite recommendations.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 4: Resume Templates Section */}
+        <section id="resume-templates" className="w-full bg-slate-50/60 border-y border-slate-100 py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-600 border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 rounded-full mb-3 shadow-xs">
+                ✦ RESUME TEMPLATES
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                ATS-Optimized Resume Templates
+              </h2>
+              <p className="text-slate-500 text-xs sm:text-sm mt-3 font-medium">
+                Explore our upcoming gallery of professionally designed, ATS-friendly resume templates.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { name: "Modern Tech", category: "Technology", color: "from-indigo-500 to-violet-600" },
+                { name: "Executive Suite", category: "Leadership", color: "from-slate-700 to-slate-900" },
+                { name: "Minimalist Pro", category: "General", color: "from-blue-500 to-indigo-600" },
+                { name: "Creative Studio", category: "Design", color: "from-pink-500 to-rose-600" },
+                { name: "Startup Founder", category: "Product", color: "from-amber-500 to-orange-600" },
+                { name: "Academic & Research", category: "Education", color: "from-emerald-500 to-teal-600" },
+              ].map((tmpl, idx) => (
+                <div key={idx} className="card-white overflow-hidden p-0 hover:shadow-lg transition-all group">
+                  {/* SVG Placeholder Preview */}
+                  <div className={`h-44 bg-gradient-to-tr ${tmpl.color} p-4 relative flex items-center justify-center overflow-hidden`}>
+                    <div className="w-4/5 h-full bg-white rounded-t-lg shadow-2xl p-3 transform group-hover:scale-105 transition-transform duration-300 flex flex-col gap-2">
+                      <div className="w-1/2 h-2.5 bg-slate-800 rounded" />
+                      <div className="w-1/3 h-1.5 bg-indigo-500 rounded" />
+                      <div className="w-full h-[1px] bg-slate-100 my-1" />
+                      <div className="space-y-1">
+                        <div className="w-full h-1.5 bg-slate-200 rounded" />
+                        <div className="w-5/6 h-1.5 bg-slate-200 rounded" />
+                        <div className="w-4/6 h-1.5 bg-slate-200 rounded" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-5 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">{tmpl.name}</h4>
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{tmpl.category}</span>
+                    </div>
+                    <span className="bg-amber-50 text-amber-700 border border-amber-200/80 font-bold px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider">
+                      Coming Soon
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 5: FAQ Section */}
+        <section id="faq" className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-600 border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 rounded-full mb-3 shadow-xs">
+              ✦ FREQUENTLY ASKED QUESTIONS
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+              Got Questions? We Have Answers
+            </h2>
+            <p className="text-slate-500 text-xs sm:text-sm mt-3 font-medium">
+              Everything you need to know about our AI resume evaluation platform.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              {
+                q: "What file formats are supported?",
+                a: "We currently support PDF format resumes up to 5MB. PDF ensures your formatting, fonts, and layout are preserved accurately during AI text extraction and parsing."
+              },
+              {
+                q: "Is my resume secure?",
+                a: "Yes, absolutely. Your documents and data are encrypted in transit and at rest. We respect candidate privacy and never share or sell your resume information to third parties."
+              },
+              {
+                q: "How is the ATS score calculated?",
+                a: "Our algorithm evaluates keyword relevance, section hierarchy, quantifiable bullet point achievements, formatting rules, and readability based on real applicant tracking system standards."
+              },
+              {
+                q: "Can I analyze multiple resumes?",
+                a: "Yes! Registered users can upload and manage multiple resume versions, analyze different job targets, and track evaluation history in their personal dashboard."
+              },
+              {
+                q: "Does AI rewrite my resume?",
+                a: "The AI provides targeted suggestions, missing keyword recommendations, and actionable bullet point rewrites that you can easily copy into your master resume."
+              },
+              {
+                q: "Is this free?",
+                a: "Yes! You can analyze your resume for free as a guest instantly, or create an account for enhanced dashboard history and AI interview preparation."
+              }
+            ].map((faq, idx) => (
+              <div
+                key={idx}
+                className="card-white p-0 overflow-hidden cursor-pointer transition-all border border-slate-200/80 hover:border-indigo-200"
+                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+              >
+                <div className="p-5 flex items-center justify-between font-bold text-slate-900 text-sm">
+                  <span>{faq.q}</span>
+                  <span className="text-indigo-600 text-lg transition-transform duration-200">
+                    {openFaq === idx ? "−" : "+"}
+                  </span>
+                </div>
+                {openFaq === idx && (
+                  <div className="px-5 pb-5 pt-0 text-slate-500 text-xs leading-relaxed border-t border-slate-100/80 font-medium">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Section 6: Contact Section */}
+        <section id="contact" className="w-full bg-slate-50/60 border-y border-slate-100 py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <span className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-600 border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 rounded-full mb-3 shadow-xs">
+                ✦ GET IN TOUCH
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                Contact Us
+              </h2>
+              <p className="text-slate-500 text-xs sm:text-sm mt-3 font-medium">
+                Have questions, feedback, or need support? Reach out to our team anytime.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Email */}
+              <a href="mailto:support@resumeai.coach" className="card-white hover:-translate-y-1 hover:border-indigo-300 transition-all flex flex-col items-center text-center p-6">
+                <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">
+                  ✉️
+                </div>
+                <h4 className="font-bold text-slate-900 text-sm mb-1">Email Support</h4>
+                <p className="text-slate-500 text-xs">support@resumeai.coach</p>
+              </a>
+
+              {/* GitHub */}
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="card-white hover:-translate-y-1 hover:border-indigo-300 transition-all flex flex-col items-center text-center p-6">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 text-slate-900 flex items-center justify-center text-xl mb-3">
+                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                  </svg>
+                </div>
+                <h4 className="font-bold text-slate-900 text-sm mb-1">GitHub</h4>
+                <p className="text-slate-500 text-xs">github.com/resumeai</p>
+              </a>
+
+              {/* LinkedIn */}
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="card-white hover:-translate-y-1 hover:border-indigo-300 transition-all flex flex-col items-center text-center p-6">
+                <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center text-xl mb-3">
+                  <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.72a1.4 1.4 0 1 0 1.4 1.4 1.4 1.4 0 0 0-1.4-1.4z"/>
+                  </svg>
+                </div>
+                <h4 className="font-bold text-slate-900 text-sm mb-1">LinkedIn</h4>
+                <p className="text-slate-500 text-xs">linkedin.com/company/resumeai</p>
+              </a>
+
+              {/* Twitter / X */}
+              <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="card-white hover:-translate-y-1 hover:border-indigo-300 transition-all flex flex-col items-center text-center p-6">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 text-slate-900 flex items-center justify-center text-xl mb-3">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                </div>
+                <h4 className="font-bold text-slate-900 text-sm mb-1">Twitter / X</h4>
+                <p className="text-slate-500 text-xs">@resumeaicoach</p>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 7: CTA Section */}
+        <section id="cta" className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="bg-gradient-to-br from-indigo-900 via-slate-900 to-violet-950 text-white rounded-3xl p-10 md:p-16 text-center border border-indigo-500/20 shadow-2xl relative overflow-hidden flex flex-col items-center gap-6">
+            <div className="inline-block text-[10px] font-bold tracking-widest uppercase text-indigo-300 bg-indigo-500/20 border border-indigo-400/30 px-3.5 py-1.5 rounded-full">
+              ✦ ELEVATE YOUR CAREER
+            </div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight max-w-2xl leading-tight">
+              Ready to Improve Your Resume?
+            </h2>
+            <p className="text-slate-300 text-xs sm:text-sm max-w-xl font-medium">
+              Join thousands of job seekers optimizing their resumes, uncovering missing keywords, and landing interviews faster.
+            </p>
+            <button
+              onClick={() => {
+                const elem = document.getElementById("upload-section");
+                if (elem) {
+                  elem.scrollIntoView({ behavior: "smooth" });
+                } else {
+                  fileInputRef.current?.click();
+                }
+              }}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-4 rounded-xl transition-all shadow-lg shadow-indigo-600/30 text-xs cursor-pointer flex items-center gap-2 mt-2"
+            >
+              <span>Analyze My Resume</span>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        {/* Section 8: Footer */}
+        <footer className="w-full border-t border-slate-200 bg-slate-50 text-slate-500 text-xs py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-5 gap-10">
+            {/* Col 1 & 2: Logo & Info */}
+            <div className="md:col-span-2 space-y-4">
+              <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("home") : window.scrollTo({ top: 0, behavior: "smooth" })}>
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-md shadow-indigo-600/20">
+                  AI
+                </div>
+                <span className="text-sm font-black tracking-wider text-slate-900 uppercase">
+                  ResumeAI.Coach
+                </span>
+              </div>
+              <p className="text-slate-500 text-xs leading-relaxed max-w-sm font-medium">
+                AI-Powered Resume Optimization & Mock Interview platform designed to help job seekers pass ATS filters and ace interviews.
+              </p>
+              <div className="flex items-center gap-3 pt-2 text-slate-400">
+                <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                </a>
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-600 transition-colors">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.72a1.4 1.4 0 1 0 1.4 1.4 1.4 1.4 0 0 0-1.4-1.4z"/></svg>
+                </a>
+                <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-900 transition-colors">
+                  <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                </a>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Quick Links</h4>
+              <ul className="space-y-2 text-xs font-semibold">
+                <li><button onClick={() => onScrollToSection ? onScrollToSection("home") : window.scrollTo({ top: 0, behavior: "smooth" })} className="hover:text-indigo-600 transition-colors">Home</button></li>
+                <li><button onClick={() => onScrollToSection ? onScrollToSection("features") : document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-indigo-600 transition-colors">Features</button></li>
+                <li><button onClick={() => onScrollToSection ? onScrollToSection("how-it-works") : document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-indigo-600 transition-colors">How It Works</button></li>
+                <li><button onClick={() => onScrollToSection ? onScrollToSection("resume-templates") : document.getElementById("resume-templates")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-indigo-600 transition-colors">Resume Templates</button></li>
+                <li><button onClick={() => onScrollToSection ? onScrollToSection("faq") : document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-indigo-600 transition-colors">FAQ</button></li>
+                <li><button onClick={() => onScrollToSection ? onScrollToSection("contact") : document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" })} className="hover:text-indigo-600 transition-colors">Contact</button></li>
+              </ul>
+            </div>
+
+            {/* Features */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Features</h4>
+              <ul className="space-y-2 text-xs font-semibold">
+                <li><span className="hover:text-slate-900 transition-colors cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("features") : document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>ATS Score Analysis</span></li>
+                <li><span className="hover:text-slate-900 transition-colors cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("features") : document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>AI Resume Feedback</span></li>
+                <li><span className="hover:text-slate-900 transition-colors cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("features") : document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>Missing Keywords</span></li>
+                <li><span className="hover:text-slate-900 transition-colors cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("features") : document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}>Skill Gap Analysis</span></li>
+              </ul>
+            </div>
+
+            {/* Resources & Legal */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Resources & Legal</h4>
+              <ul className="space-y-2 text-xs font-semibold">
+                <li><span className="hover:text-slate-900 transition-colors cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("faq") : document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })}>Privacy Policy</span></li>
+                <li><span className="hover:text-slate-900 transition-colors cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("faq") : document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })}>Terms of Service</span></li>
+                <li><span className="hover:text-slate-900 transition-colors cursor-pointer" onClick={() => onScrollToSection ? onScrollToSection("faq") : document.getElementById("faq")?.scrollIntoView({ behavior: "smooth" })}>FAQ & Support</span></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-400 font-medium">
+            <span>© {new Date().getFullYear()} ResumeAI.Coach. All rights reserved.</span>
+            <div className="flex items-center gap-6">
+              <span className="hover:text-slate-600 cursor-pointer">Privacy Policy</span>
+              <span className="hover:text-slate-600 cursor-pointer">Terms of Service</span>
+            </div>
+          </div>
+        </footer>
       </div>
     );
   }

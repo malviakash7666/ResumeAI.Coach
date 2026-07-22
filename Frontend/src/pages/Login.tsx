@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { auth as firebaseAuth, googleProvider } from "../config/firebase";
+import { signInWithPopup } from "firebase/auth";
+import { useSearchParams } from "react-router-dom";
 
 interface LoginProps {
-  onAuthSuccess: (user: any, token: string) => void;
+  onAuthSuccess: (user: any, token: string, refreshToken?: string) => void;
   onBack: () => void;
   redirectWarning?: string | null;
 }
@@ -10,6 +13,7 @@ const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"
 
 export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginProps) {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [searchParams] = useSearchParams();
   
   // Form fields
   const [name, setName] = useState("");
@@ -21,6 +25,88 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
   // UX states
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Handle URL tokens and errors (e.g. from GitHub callback redirect)
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      setErrorMsg(decodeURIComponent(errorParam));
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    const tokenParam = searchParams.get("token");
+    const refreshTokenParam = searchParams.get("refreshToken");
+    if (tokenParam) {
+      setLoading(true);
+      fetch(`${BACKEND_URL}/auth/me`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${tokenParam}` },
+        credentials: "include"
+      })
+        .then((res) => res.json())
+        .then((resJson) => {
+          if (resJson.success) {
+            onAuthSuccess(resJson.data.user, tokenParam, refreshTokenParam || undefined);
+          } else {
+            setErrorMsg("Social authentication session verification failed.");
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          setErrorMsg("Failed to verify social authentication session.");
+        })
+        .finally(() => {
+          setLoading(false);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    }
+  }, [searchParams, onAuthSuccess]);
+
+  const handleGoogleLoginClick = async () => {
+    setErrorMsg(null);
+    
+    const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+    if (!apiKey || apiKey.includes("placeholder")) {
+      setErrorMsg("Firebase is not configured. Please set a valid VITE_FIREBASE_API_KEY in Frontend/.env and restart your frontend dev server.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(firebaseAuth, googleProvider);
+      const idToken = await result.user.getIdToken();
+      
+      const res = await fetch(`${BACKEND_URL}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+        credentials: "include",
+      });
+      
+      const resJson = await res.json();
+      if (!res.ok || !resJson.success) {
+        throw new Error(resJson.message || "Google Authentication failed.");
+      }
+      
+      const { user, accessToken, refreshToken } = resJson.data;
+      onAuthSuccess(user, accessToken, refreshToken);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Google Sign-In failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGithubLoginClick = () => {
+    setLoading(true);
+    window.location.href = `${BACKEND_URL}/auth/github`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +135,7 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "include",
       });
 
       const resJson = await res.json();
@@ -57,8 +144,8 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
         throw new Error(resJson.message || "Authentication failed. Please verify credentials.");
       }
 
-      const { user, accessToken } = resJson.data;
-      onAuthSuccess(user, accessToken);
+      const { user, accessToken, refreshToken } = resJson.data;
+      onAuthSuccess(user, accessToken, refreshToken);
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || "An unexpected error occurred. Please try again.");
@@ -151,14 +238,23 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
                 </button>
               )}
             </div>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-12 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-[50%] -translate-y-[50%] text-slate-450 hover:text-slate-650 cursor-pointer bg-transparent border-none font-bold text-[11px]"
+              >
+                {showPassword ? "🙈 Hide" : "👁️ Show"}
+              </button>
+            </div>
           </div>
 
           {isSignUp && (
@@ -167,14 +263,23 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm your password"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your password"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-12 py-3 text-slate-850 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:bg-white transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 top-[50%] -translate-y-[50%] text-slate-450 hover:text-slate-650 cursor-pointer bg-transparent border-none font-bold text-[11px]"
+                  >
+                    {showConfirmPassword ? "🙈 Hide" : "👁️ Show"}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 mt-2">
@@ -210,10 +315,20 @@ export default function Login({ onAuthSuccess, onBack, redirectWarning }: LoginP
 
         {/* Social Buttons */}
         <div className="grid grid-cols-2 gap-3">
-          <button className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors">
+          <button
+            type="button"
+            onClick={handleGoogleLoginClick}
+            disabled={loading}
+            className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+          >
             <span className="text-sm">🌐</span> Google
           </button>
-          <button className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors">
+          <button
+            type="button"
+            onClick={handleGithubLoginClick}
+            disabled={loading}
+            className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+          >
             <span className="text-sm">🐙</span> GitHub
           </button>
         </div>

@@ -1,13 +1,16 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 
 import db from "./src/database/models/index.js";
 import resumeRouter from "./src/modules/resume.routes.js";
 import authRouter from "./src/routes/auth.routes.js";
-
-dotenv.config();
+import jobsRouter from "./src/routes/jobs.routes.js";
+import applicationsRouter from "./src/routes/applications.routes.js";
+import { initJobCron } from "./src/jobs/cron.service.js";
 console.log({
   cloud: process.env.CLOUDINARY_CLOUD_NAME,
   key: process.env.CLOUDINARY_API_KEY,
@@ -60,6 +63,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/jobs", jobsRouter);
+app.use("/applications", applicationsRouter);
 app.use("/", resumeRouter);
 
 // Global Error Handler returning standardized error payload formats
@@ -85,8 +90,8 @@ async function startServer() {
     await db.sequelize.authenticate();
     console.log("✅ Database connected");
     
-    // Sync schemas automatically
-    await db.sequelize.sync({ alter: true });
+    // Sync schemas automatically (safe creation of missing tables only)
+    await db.sequelize.sync();
     console.log("✅ Database models synchronized");
   } catch (error) {
     console.warn("⚠️ Database connection failed. Proceeding in memory-only mode without database...");
@@ -95,6 +100,7 @@ async function startServer() {
 
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
+    initJobCron();
   });
 }
 

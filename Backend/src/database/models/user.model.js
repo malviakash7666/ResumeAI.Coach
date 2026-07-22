@@ -27,7 +27,7 @@ export default (sequelize) => {
 
       password: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
       },
 
       role: {
@@ -36,6 +36,22 @@ export default (sequelize) => {
       },
 
       avatarUrl: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+
+      avatar: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+
+      provider: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        defaultValue: "local",
+      },
+
+      providerId: {
         type: DataTypes.STRING,
         allowNull: true,
       },
@@ -104,6 +120,9 @@ export default (sequelize) => {
   User.associate = (db) => {
     User.hasMany(db.Resume, { foreignKey: "userId", as: "resumes", onDelete: "CASCADE" });
     User.hasMany(db.Interview, { foreignKey: "userId", as: "interviews", onDelete: "CASCADE" });
+    User.hasOne(db.CandidateProfile, { foreignKey: "userId", as: "candidateProfile", onDelete: "CASCADE" });
+    User.hasMany(db.Application, { foreignKey: "userId", as: "applications", onDelete: "CASCADE" });
+    User.hasMany(db.SavedJob, { foreignKey: "userId", as: "savedJobs", onDelete: "CASCADE" });
   };
 
   return User;

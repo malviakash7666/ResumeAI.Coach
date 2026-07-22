@@ -10,6 +10,7 @@ import {
   getUserInterviews,
   getInterviewReport,
   deleteUserResume,
+  deleteUserInterview,
 } from "./resume.controller.js";
 import { protect, optionalProtect } from "../middlewares/auth.middleware.js";
 
@@ -40,5 +41,6 @@ router.get("/resumes", protect, getUserResumes);
 router.delete("/resumes/:id", protect, deleteUserResume);
 router.get("/interviews", protect, getUserInterviews);
 router.get("/interviews/:id", protect, getInterviewReport);
+router.delete("/interviews/:id", protect, deleteUserInterview);
 
 export default router;

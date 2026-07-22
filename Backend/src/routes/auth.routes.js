@@ -12,4 +12,9 @@ router.get("/me", protect, authController.getMe);
 router.put("/profile", protect, authController.updateProfile);
 router.put("/change-password", protect, authController.changePassword);
 
+// Social authentication routes
+router.get("/github", authController.githubRedirect);
+router.get("/github/callback", authController.githubCallback);
+router.post("/google", authController.googleLogin);
+
 export default router;

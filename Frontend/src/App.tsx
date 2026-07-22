@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Analysis from "./pages/Analysis";
 import ModeSelection from "./pages/ModeSelection";
@@ -7,8 +8,13 @@ import Report from "./pages/Report";
 import Login from "./pages/Login";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
-
-type PageType = "home" | "analysis" | "mode_selection" | "interview" | "report" | "login" | "history" | "settings";
+import Jobs from "./pages/Jobs";
+import Applications from "./pages/Applications";
+import Profile from "./pages/Profile";
+import SavedJobs from "./pages/SavedJobs";
+import Dashboard from "./pages/Dashboard";
+import MyResumes from "./pages/MyResumes";
+import DashboardLayout from "./layouts/DashboardLayout";
 
 interface ChatMessage {
   role: "interviewer" | "candidate";
@@ -33,17 +39,22 @@ interface LatestFeedback {
 const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "http://localhost:5000").replace(/\/$/, "");
 
 export default function App() {
-  const [page, setPage] = useState<PageType>("home");
+  const navigate = useNavigate();
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [interviewMode, setInterviewMode] = useState<"text" | "voice">("text");
   const [dashboardTab, setDashboardTab] = useState<"overview" | "uploads">("overview");
 
+  // Landing page navigation state
+  const [activeLandingSection, setActiveLandingSection] = useState<string>("home");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
   // User Auth States
   const [user, setUser] = useState<any | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [authWarning, setAuthWarning] = useState<string | null>(null);
-  
+
   // Loading & Error States
   const [loadingText, setLoadingText] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -58,26 +69,45 @@ export default function App() {
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // 1. Session Persistence check on boot
+  // Smooth scroll handler without URL hash changes for landing page
+  const scrollToLandingSection = (sectionId: string) => {
+    setActiveLandingSection(sectionId);
+    setMobileMenuOpen(false);
+    if (sectionId === "home") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const elem = document.getElementById(sectionId);
+    if (elem) {
+      const navOffset = 70;
+      const elementPosition = elem.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: elementPosition - navOffset,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  // Check user session on mount
   useEffect(() => {
     const checkUserSession = async () => {
       const storedToken = localStorage.getItem("accessToken");
-      if (!storedToken) return;
 
       try {
+        const headers: Record<string, string> = {};
+        if (storedToken) headers["Authorization"] = `Bearer ${storedToken}`;
+
         const res = await fetch(`${BACKEND_URL}/auth/me`, {
           method: "GET",
-          headers: {
-            "Authorization": `Bearer ${storedToken}`,
-          },
+          headers,
+          credentials: "include",
         });
-        
+
         const resJson = await res.json();
         if (resJson.success) {
           setUser(resJson.data.user);
-          setToken(storedToken);
-          
-          // Preload stored resume details if available
+          setToken(storedToken || resJson.data.accessToken || null);
+
           if (resJson.data.user.resumeUrl) {
             setFileName("Saved Profile Resume.pdf");
             setSessionId(resJson.data.user.id);
@@ -86,7 +116,6 @@ export default function App() {
             }
           }
         } else {
-          // Attempt refresh
           await handleTokenRefresh();
         }
       } catch (err) {
@@ -97,23 +126,30 @@ export default function App() {
     checkUserSession();
   }, []);
 
-  // 2. Token refresh handler
   const handleTokenRefresh = async () => {
     try {
+      const storedRefreshToken = localStorage.getItem("refreshToken");
       const res = await fetch(`${BACKEND_URL}/auth/refresh-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: storedRefreshToken }),
+        credentials: "include",
       });
 
       const resJson = await res.json();
       if (resJson.success) {
         const newToken = resJson.data.accessToken;
-        localStorage.setItem("accessToken", newToken);
-        setToken(newToken);
-        
-        // Retrieve profile details with the new token
+        if (newToken) {
+          localStorage.setItem("accessToken", newToken);
+          setToken(newToken);
+        }
+        if (resJson.data.refreshToken) {
+          localStorage.setItem("refreshToken", resJson.data.refreshToken);
+        }
+
         const meRes = await fetch(`${BACKEND_URL}/auth/me`, {
-          headers: { "Authorization": `Bearer ${newToken}` },
+          headers: newToken ? { "Authorization": `Bearer ${newToken}` } : {},
+          credentials: "include",
         });
         const meJson = await meRes.json();
         if (meJson.success) {
@@ -134,36 +170,30 @@ export default function App() {
     }
   };
 
-  // Auth Operations
-  const handleAuthSuccess = (authUser: any, authToken: string) => {
+  const handleAuthSuccess = (authUser: any, authToken: string, authRefreshToken?: string) => {
     setUser(authUser);
     setToken(authToken);
-    localStorage.setItem("accessToken", authToken);
+    if (authToken) localStorage.setItem("accessToken", authToken);
+    if (authRefreshToken) localStorage.setItem("refreshToken", authRefreshToken);
     setAuthWarning(null);
 
-    // Preload resume if they already have one
-    if (authUser.resumeUrl) {
+    if (authUser.resumeUrl && authUser.resumeAnalysis) {
       setFileName("Saved Profile Resume.pdf");
       setSessionId(authUser.id);
-      if (authUser.resumeAnalysis) {
-        setAnalysis(authUser.resumeAnalysis);
-        setPage("analysis");
-        return;
-      }
+      setAnalysis(authUser.resumeAnalysis);
+      navigate("/analysis");
+      return;
     }
-    setPage("home");
+    navigate("/dashboard");
   };
 
   const handleLogout = async () => {
     try {
-      if (token) {
-        await fetch(`${BACKEND_URL}/auth/logout`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-      }
+      await fetch(`${BACKEND_URL}/auth/logout`, {
+        method: "POST",
+        headers: token ? { "Authorization": `Bearer ${token}` } : {},
+        credentials: "include",
+      });
     } catch (e) {
       console.error("Logout request failed:", e);
     } finally {
@@ -178,7 +208,6 @@ export default function App() {
     handleRestart();
   };
 
-  // Upload Handlers
   const handleUploadStart = (text: string) => {
     setLoadingText(text);
     setErrorMsg(null);
@@ -189,13 +218,12 @@ export default function App() {
     setFileName(name);
     setAnalysis(analysisData);
     setLoadingText("");
-    setPage("analysis");
+    navigate("/analysis");
 
-    // Update user profile analysis state locally if logged in
     if (user) {
       setUser((prev: any) => ({
         ...prev,
-        resumeUrl: "Updated", // placeholder to flag presence
+        resumeUrl: "Updated",
         resumeAnalysis: analysisData,
       }));
     }
@@ -206,9 +234,12 @@ export default function App() {
     setErrorMsg(msg);
   };
 
-  // Start Interview with Mode Configuration
-  const handleStartInterview = async (mode: "text" | "voice") => {
-    if (!sessionId) return;
+  const handleStartInterview = async (mode: "text" | "voice", overrideSessionId?: string) => {
+    const activeSessionId = overrideSessionId || sessionId;
+    if (!activeSessionId) return;
+    if (overrideSessionId) {
+      setSessionId(overrideSessionId);
+    }
     setInterviewMode(mode);
     setLoadingText("AI Interviewer is preparing your customized questions...");
     setErrorMsg(null);
@@ -222,7 +253,7 @@ export default function App() {
       const res = await fetch(`${BACKEND_URL}/start-interview`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ sessionId, mode }),
+        body: JSON.stringify({ sessionId: activeSessionId, mode }),
       });
 
       const resJson = await res.json();
@@ -230,16 +261,20 @@ export default function App() {
         throw new Error(resJson.message || "Failed to start interview.");
       }
 
-      const { question } = resJson.data;
-      
-      setChatMessages([
-        {
-          role: "interviewer",
-          content: question,
-        },
-      ]);
+      const { question, chatHistory } = resJson.data;
+
+      if (chatHistory && chatHistory.length > 0) {
+        setChatMessages(chatHistory);
+      } else {
+        setChatMessages([
+          {
+            role: "interviewer",
+            content: question,
+          },
+        ]);
+      }
       setLatestFeedback(null);
-      setPage("interview");
+      navigate("/interview/live");
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || "Could not start the interview session.");
@@ -248,7 +283,6 @@ export default function App() {
     }
   };
 
-  // Submit Answer
   const handleSubmitAnswer = async (voiceAnswer?: string) => {
     if (!sessionId || isSubmittingAnswer) return;
 
@@ -259,7 +293,6 @@ export default function App() {
     setIsSubmittingAnswer(true);
     setErrorMsg(null);
 
-    // Append user answer immediately to display
     setChatMessages((prev) => [...prev, { role: "candidate", content: answer }]);
 
     try {
@@ -281,7 +314,6 @@ export default function App() {
 
       const data = resJson.data;
 
-      // Attach grades to the user message in local state
       setChatMessages((prev) => {
         const updated = [...prev];
         const lastMsgIndex = updated.length - 1;
@@ -299,7 +331,6 @@ export default function App() {
         return updated;
       });
 
-      // Update scoring panel
       setLatestFeedback({
         feedback: data.feedback,
         score: data.score,
@@ -309,7 +340,6 @@ export default function App() {
         problemSolvingScore: data.problemSolvingScore,
       });
 
-      // Append next AI question
       setChatMessages((prev) => [
         ...prev,
         {
@@ -325,7 +355,6 @@ export default function App() {
     }
   };
 
-  // End Interview & Fetch Final Report
   const handleEndInterview = async () => {
     if (!sessionId) return;
     setLoadingText("AI Panel is generating your final performance report...");
@@ -350,7 +379,7 @@ export default function App() {
 
       const reportData = resJson.data;
       setReport(reportData);
-      setPage("report");
+      navigate("/reports");
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || "Failed to compile the final interview report.");
@@ -359,7 +388,6 @@ export default function App() {
     }
   };
 
-  // Reset/Restart session
   const handleRestart = () => {
     setSessionId(null);
     setFileName("");
@@ -367,26 +395,26 @@ export default function App() {
     setChatMessages([]);
     setLatestFeedback(null);
     setReport(null);
-    setPage("home");
     setErrorMsg(null);
 
-    // If logged in, reload profile saved resume details if available
     if (user && user.resumeUrl) {
       setFileName("Saved Profile Resume.pdf");
       setSessionId(user.id);
       if (user.resumeAnalysis) {
         setAnalysis(user.resumeAnalysis);
-        setPage("analysis");
+        navigate("/analysis");
+        return;
       }
     }
+    navigate("/");
   };
 
   const handleStartInterviewClick = () => {
     if (!user) {
       setAuthWarning("Please login to start your AI Mock Interview.");
-      setPage("login");
+      navigate("/login");
     } else {
-      setPage("mode_selection");
+      navigate("/interview/modes");
     }
   };
 
@@ -394,12 +422,12 @@ export default function App() {
     setSessionId(resume.id);
     setFileName(resume.fileName);
     setAnalysis(resume.resumeAnalysis);
-    setPage("analysis");
+    navigate("/analysis");
   };
 
   const handleViewReport = (reportData: any) => {
     setReport(reportData);
-    setPage("report");
+    navigate("/reports");
   };
 
   const handleUpdateUser = (updatedUser: any) => {
@@ -417,310 +445,118 @@ export default function App() {
         </div>
       )}
 
-      {/* ── CASE 1: LANDING PAGE FOR GUEST ── */}
-      {page === "home" && !user ? (
-        <div className="flex-1 flex flex-col bg-white">
-          <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-              <div className="flex items-center gap-2.5 cursor-pointer" onClick={handleRestart}>
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
-                  AI
-                </div>
-                <span className="text-sm font-black tracking-wider text-slate-900 uppercase">
-                  ResumeAI.Coach
-                </span>
-              </div>
-              <div className="hidden md:flex items-center gap-8 text-xs font-bold text-slate-500">
-                <a href="#features" className="hover:text-slate-900 transition-colors">Features</a>
-                <a href="#how-it-works" className="hover:text-slate-900 transition-colors">How It Works</a>
-                <a href="#pricing" className="hover:text-slate-900 transition-colors">Pricing</a>
-                <a href="#blog" className="hover:text-slate-900 transition-colors">Blog</a>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    setAuthWarning(null);
-                    setPage("login");
-                  }}
-                  className="text-xs font-bold text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors cursor-pointer"
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthWarning(null);
-                    setPage("login");
-                  }}
-                  className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
-                >
-                  Get Started
-                </button>
-              </div>
-            </div>
-          </nav>
-
-          <main className="flex-1 flex flex-col justify-center">
-            {errorMsg && (
-              <div className="max-w-4xl mx-auto w-full px-4 mt-6">
-                <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl flex items-start gap-3">
-                  <span className="text-sm">⚠️</span>
-                  <div className="flex-1 text-xs">
-                    <h4 className="font-bold">System Alert</h4>
-                    <p className="mt-0.5 text-red-600">{errorMsg}</p>
-                  </div>
-                  <button onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
-                </div>
-              </div>
-            )}
-            <Home
-              onUploadStart={handleUploadStart}
-              onUploadSuccess={handleUploadSuccess}
-              onUploadError={handleUploadError}
-              token={token}
-              user={user}
-              activeTab={dashboardTab}
-              setActiveTab={setDashboardTab}
-              onLoadResume={handleLoadResume}
-              onStartInterview={handleStartInterviewClick}
-            />
-          </main>
-
-          <footer className="border-t border-slate-100 py-8 bg-slate-50 text-xs text-slate-400">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="font-black uppercase tracking-wider text-slate-500">ResumeAI.Coach</span>
-              <span>© {new Date().getFullYear()} ResumeAI. All rights reserved.</span>
-              <span>Built for premium MVP presentation</span>
-            </div>
-          </footer>
-        </div>
-      ) : page === "login" ? (
-        /* ── CASE 2: LOGIN / REGISTER CARD ── */
-        <div className="flex-1 flex flex-col justify-center py-12 px-4 bg-slate-50">
-          <div className="max-w-md mx-auto w-full flex items-center justify-center gap-2 mb-6 cursor-pointer" onClick={handleRestart}>
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
-              AI
-            </div>
-            <span className="text-base font-black tracking-wider text-slate-900 uppercase">
-              ResumeAI.Coach
-            </span>
-          </div>
-          <Login
-            onAuthSuccess={handleAuthSuccess}
-            onBack={() => setPage(analysis ? "analysis" : "home")}
-            redirectWarning={authWarning}
-          />
-        </div>
-      ) : (
-        /* ── CASE 3: AUTHENTICATED APP / SIDEBAR VIEW ── */
-        <div className="flex-1 flex min-h-screen text-slate-800">
-          {/* Left Sidebar Layout */}
-          <aside className="w-64 bg-[#0F111A] text-slate-400 flex flex-col justify-between p-4 flex-shrink-0 border-r border-slate-900 print:hidden">
-            <div className="flex flex-col gap-6">
-              {/* Logo */}
-              <div className="flex items-center gap-2.5 px-3 py-2 cursor-pointer" onClick={handleRestart}>
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
-                  AI
-                </div>
-                <span className="text-sm font-black tracking-wider text-white uppercase">
-                  ResumeAI.Coach
-                </span>
-                <span className="bg-indigo-500/20 text-indigo-400 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
-                  PRO
-                </span>
-              </div>
-
-              {/* Navigation Menu */}
-              <nav className="flex flex-col gap-1">
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      setAuthWarning("Please login to view dashboard stats.");
-                      setPage("login");
-                    } else {
-                      setDashboardTab("overview");
-                      setPage("home");
-                    }
-                  }}
-                  className={`sidebar-link ${page === "home" && dashboardTab === "overview" ? "sidebar-link-active" : ""}`}
-                >
-                  <span className="text-sm">📊</span>
-                  <span>Dashboard</span>
-                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      setAuthWarning("Please login to view your resumes.");
-                      setPage("login");
-                    } else {
-                      setDashboardTab("uploads");
-                      setPage("home");
-                    }
-                  }}
-                  className={`sidebar-link ${page === "home" && dashboardTab === "uploads" ? "sidebar-link-active" : ""}`}
-                >
-                  <span className="text-sm">📁</span>
-                  <span>My Resumes</span>
-                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (analysis) setPage("analysis");
-                  }}
-                  disabled={!analysis}
-                  className={`sidebar-link ${page === "analysis" ? "sidebar-link-active" : ""} disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  <span className="text-sm">⚡</span>
-                  <span>AI Analysis</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (analysis) {
-                      setPage("mode_selection");
-                    } else {
-                      alert("Please upload your resume to start an interview session.");
-                    }
-                  }}
-                  className={`sidebar-link ${page === "mode_selection" || page === "interview" ? "sidebar-link-active" : ""}`}
-                >
-                  <span className="text-sm">🎙️</span>
-                  <span>Mock Interview</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      setAuthWarning("Please login to access interview history.");
-                      setPage("login");
-                    } else {
-                      setPage("history");
-                    }
-                  }}
-                  className={`sidebar-link ${page === "history" ? "sidebar-link-active" : ""}`}
-                >
-                  <span className="text-sm">📅</span>
-                  <span>Interview History</span>
-                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (report) setPage("report");
-                  }}
-                  disabled={!report}
-                  className={`sidebar-link ${page === "report" ? "sidebar-link-active" : ""} disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  <span className="text-sm">💡</span>
-                  <span>Reports</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      setAuthWarning("Please login to access settings.");
-                      setPage("login");
-                    } else {
-                      setPage("settings");
-                    }
-                  }}
-                  className={`sidebar-link ${page === "settings" ? "sidebar-link-active" : ""}`}
-                >
-                  <span className="text-sm">⚙️</span>
-                  <span>Account Settings</span>
-                  {!user && <span className="ml-auto text-[9px]">🔒</span>}
-                </button>
-              </nav>
-            </div>
-
-            {/* Logout panel */}
-            <div className="border-t border-slate-900 pt-4 flex flex-col gap-3">
-              {user ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 px-3 py-1 text-slate-300">
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-xs border border-slate-700">
-                      {user.name[0].toUpperCase()}
+      <Routes>
+        {/* Landing Page Route */}
+        <Route
+          path="/"
+          element={
+            user ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <div className="flex-1 flex flex-col bg-white">
+                <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100/80 transition-all">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                    {/* Logo */}
+                    <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => scrollToLandingSection("home")}>
+                      <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-md shadow-indigo-600/20">
+                        AI
+                      </div>
+                      <span className="text-sm font-black tracking-wider text-slate-900 uppercase">
+                        ResumeAI.Coach
+                      </span>
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold truncate">{user.name}</span>
-                      <span className="text-[9px] text-slate-500 uppercase tracking-widest">{user.role}</span>
+
+                    {/* Desktop Nav Links */}
+                    <div className="hidden md:flex items-center gap-1.5 text-xs font-bold">
+                      {[
+                        { id: "home", label: "Home" },
+                        { id: "features", label: "Features" },
+                        { id: "how-it-works", label: "How It Works" },
+                        { id: "resume-templates", label: "Resume Templates" },
+                        { id: "faq", label: "FAQ" },
+                        { id: "contact", label: "Contact" },
+                      ].map((link) => (
+                        <button
+                          key={link.id}
+                          onClick={() => scrollToLandingSection(link.id)}
+                          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            activeLandingSection === link.id
+                              ? "text-indigo-600 bg-indigo-50/80 font-black shadow-xs"
+                              : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                          }`}
+                        >
+                          {link.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Right Side Buttons & Hamburger */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => {
+                          setAuthWarning(null);
+                          navigate("/login");
+                        }}
+                        className="text-xs font-bold text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors cursor-pointer"
+                      >
+                        Login
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAuthWarning(null);
+                          navigate("/login");
+                        }}
+                        className="text-xs bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                      >
+                        Get Started
+                      </button>
+
+                      {/* Mobile Hamburger Button */}
+                      <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className="md:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer ml-1"
+                        aria-label="Toggle navigation menu"
+                      >
+                        {mobileMenuOpen ? (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        ) : (
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-500/10 transition-colors font-bold cursor-pointer"
-                  >
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setPage("login")}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs text-center cursor-pointer transition-colors shadow-md shadow-indigo-600/10"
-                >
-                  Sign In
-                </button>
-              )}
-            </div>
-          </aside>
 
-          {/* Right Main Content */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Top Header Panel */}
-            <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 print:hidden">
-              <h2 className="text-sm font-black text-slate-900 capitalize tracking-wide">
-                {page === "home"
-                  ? dashboardTab === "overview"
-                    ? "Dashboard"
-                    : "My Resumes"
-                  : page === "mode_selection"
-                  ? "Select Mock Mode"
-                  : page === "interview"
-                  ? "Live Mock Interview"
-                  : page === "report"
-                  ? "Interview Report"
-                  : page === "history"
-                  ? "Interview History"
-                  : page === "settings"
-                  ? "Profile Settings"
-                  : page}
-              </h2>
-
-              <div className="flex items-center gap-4">
-                <button className="bg-indigo-50 hover:bg-indigo-100/70 border border-indigo-100 text-indigo-600 font-bold px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider transition-colors">
-                  Upgrade Plan
-                </button>
-
-                {user && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs border border-slate-200">
-                      {user.name[0].toUpperCase()}
+                  {/* Mobile Nav Menu Dropdown */}
+                  {mobileMenuOpen && (
+                    <div className="md:hidden border-t border-slate-100 bg-white/95 backdrop-blur-md px-4 py-3 space-y-1.5 animate-slide-down shadow-lg">
+                      {[
+                        { id: "home", label: "Home" },
+                        { id: "features", label: "Features" },
+                        { id: "how-it-works", label: "How It Works" },
+                        { id: "resume-templates", label: "Resume Templates" },
+                        { id: "faq", label: "FAQ" },
+                        { id: "contact", label: "Contact" },
+                      ].map((link) => (
+                        <button
+                          key={link.id}
+                          onClick={() => scrollToLandingSection(link.id)}
+                          className={`block w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            activeLandingSection === link.id
+                              ? "text-indigo-600 bg-indigo-50/80 font-black"
+                              : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+                          }`}
+                        >
+                          {link.label}
+                        </button>
+                      ))}
                     </div>
-                    <span className="text-xs font-semibold text-slate-700 hidden sm:inline-block">
-                      {user.name}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </header>
+                  )}
+                </nav>
 
-            {/* Main Content Scroll Area */}
-            <main className="flex-1 p-6 overflow-y-auto">
-              {errorMsg && (
-                <div className="mb-6 bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl flex items-start gap-3 max-w-2xl mx-auto w-full print:hidden">
-                  <span className="text-sm">⚠️</span>
-                  <div className="flex-1 text-xs">
-                    <h4 className="font-bold">System Alert</h4>
-                    <p className="mt-0.5 text-red-600">{errorMsg}</p>
-                  </div>
-                  <button onClick={() => setErrorMsg(null)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
-                </div>
-              )}
-
-              {/* Render View Components */}
-              {page === "home" && (
                 <Home
                   onUploadStart={handleUploadStart}
                   onUploadSuccess={handleUploadSuccess}
@@ -731,25 +567,163 @@ export default function App() {
                   setActiveTab={setDashboardTab}
                   onLoadResume={handleLoadResume}
                   onStartInterview={handleStartInterviewClick}
+                  onScrollToSection={scrollToLandingSection}
                 />
-              )}
+              </div>
+            )
+          }
+        />
 
-              {page === "analysis" && analysis && (
+        {/* Auth Login Route */}
+        <Route
+          path="/login"
+          element={
+            user ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <div className="flex-1 flex flex-col justify-center py-12 px-4 bg-slate-50 min-h-screen">
+                <div className="max-w-md mx-auto w-full flex items-center justify-center gap-2 mb-6 cursor-pointer" onClick={handleRestart}>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
+                    AI
+                  </div>
+                  <span className="text-base font-black tracking-wider text-slate-900 uppercase">
+                    ResumeAI.Coach
+                  </span>
+                </div>
+                <Login
+                  onAuthSuccess={handleAuthSuccess}
+                  onBack={() => navigate(analysis ? "/analysis" : "/")}
+                  redirectWarning={authWarning}
+                />
+              </div>
+            )
+          }
+        />
+
+        {/* Dashboard Layout with Nested Routes */}
+        <Route
+          element={
+            user ? (
+              <DashboardLayout
+                user={user}
+                analysis={analysis}
+                report={report}
+                onLogout={handleLogout}
+                onRestart={handleRestart}
+                setAuthWarning={setAuthWarning}
+                errorMsg={errorMsg}
+                setErrorMsg={setErrorMsg}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        >
+          <Route
+            path="/dashboard"
+            element={
+              <Dashboard
+                token={token}
+                user={user}
+                onUploadStart={handleUploadStart}
+                onUploadSuccess={handleUploadSuccess}
+                onUploadError={handleUploadError}
+                onNavigateToJobs={() => navigate("/jobs")}
+                onNavigateToInterviews={() => navigate("/interview/modes")}
+                onNavigateToResumes={() => navigate("/resumes")}
+              />
+            }
+          />
+
+          <Route
+            path="/resumes"
+            element={
+              <MyResumes
+                token={token}
+                user={user}
+                onLoadResume={handleLoadResume}
+                onStartInterview={handleStartInterviewClick}
+                onNavigateToDashboard={() => navigate("/dashboard")}
+              />
+            }
+          />
+
+          <Route
+            path="/analysis"
+            element={
+              analysis ? (
                 <Analysis
                   analysis={analysis}
                   onStartInterview={handleStartInterviewClick}
                   onBack={handleRestart}
                 />
-              )}
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            }
+          />
 
-              {page === "mode_selection" && (
+          <Route
+            path="/jobs"
+            element={
+              <Jobs
+                token={token}
+                user={user}
+                onNavigateToProfile={() => navigate("/profile")}
+                onNavigateToApplications={() => navigate("/applications")}
+                onNavigateToSaved={() => navigate("/saved-jobs")}
+              />
+            }
+          />
+
+          <Route
+            path="/saved-jobs"
+            element={
+              <SavedJobs
+                token={token}
+                setPage={(page) => navigate(`/${page}`)}
+              />
+            }
+          />
+
+          <Route
+            path="/applications"
+            element={
+              <Applications
+                token={token}
+                setPage={(page) => navigate(`/${page}`)}
+              />
+            }
+          />
+
+          <Route
+            path="/profile"
+            element={
+              <Profile
+                token={token}
+                user={user}
+              />
+            }
+          />
+
+          <Route
+            path="/interview/modes"
+            element={
+              analysis || (user && user.resumeUrl) ? (
                 <ModeSelection
                   onStartInterview={handleStartInterview}
-                  onBack={() => setPage("analysis")}
+                  onBack={() => navigate("/analysis")}
                 />
-              )}
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            }
+          />
 
-              {page === "interview" && (
+          <Route
+            path="/interview/live"
+            element={
+              analysis || (user && user.resumeUrl) ? (
                 <Interview
                   mode={interviewMode}
                   chatMessages={chatMessages}
@@ -761,35 +735,64 @@ export default function App() {
                   onEndInterview={handleEndInterview}
                   chatEndRef={chatEndRef}
                 />
-              )}
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            }
+          />
 
-              {page === "report" && report && (
+          <Route
+            path="/history"
+            element={
+              <History
+                token={token}
+                onViewReport={handleViewReport}
+                onContinueInterview={handleStartInterview}
+                setPage={(page) => {
+                  if (page === "home") {
+                    if (analysis || (user && user.resumeUrl)) {
+                      navigate("/interview/modes");
+                    } else {
+                      navigate("/dashboard");
+                    }
+                  } else {
+                    navigate(`/${page}`);
+                  }
+                }}
+              />
+            }
+          />
+
+          <Route
+            path="/reports"
+            element={
+              report ? (
                 <Report
                   report={report}
                   onRestart={handleRestart}
                   isGuest={!user}
                 />
-              )}
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            }
+          />
 
-              {page === "history" && (
-                <History
-                  token={token}
-                  onViewReport={handleViewReport}
-                  setPage={setPage}
-                />
-              )}
+          <Route
+            path="/settings"
+            element={
+              <Settings
+                token={token}
+                user={user}
+                onUpdateUser={handleUpdateUser}
+              />
+            }
+          />
+        </Route>
 
-              {page === "settings" && (
-                <Settings
-                  token={token}
-                  user={user}
-                  onUpdateUser={handleUpdateUser}
-                />
-              )}
-            </main>
-          </div>
-        </div>
-      )}
+        {/* Catch-all fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
 }

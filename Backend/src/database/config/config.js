@@ -15,6 +15,7 @@ const config = {
     port: process.env.DB_PORT,
     dialect: "postgres",
     dialectOptions: sslConfig ? { ssl: sslConfig } : {},
+    logging: false,
   },
 
   test: {
@@ -25,6 +26,7 @@ const config = {
     port: process.env.DB_PORT,
     dialect: "postgres",
     dialectOptions: sslConfig ? { ssl: sslConfig } : {},
+    logging: false,
   },
 
   production: {
@@ -36,6 +38,7 @@ const config = {
         rejectUnauthorized: false,
       },
     },
+    logging: false,
   },
 };
 

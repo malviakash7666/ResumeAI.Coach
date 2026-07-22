@@ -18,7 +18,7 @@ const generateSessionId = () => {
 };
 
 // Helper: Call Groq API (LLaMA 3)
-async function callGroqAPI(messages, responseFormat = "json_object") {
+export async function callGroqAPI(messages, responseFormat = "json_object") {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey || apiKey.trim() === "" || apiKey === "your_groq_api_key_here") {
     throw new Error("Groq API Key is not configured in the backend environment variables.");
@@ -114,6 +114,9 @@ export const uploadResume = async (req, res, next) => {
         resumeAnalysis: null,
       });
 
+      // Sync resumeUrl to the user record
+      await user.update({ resumeUrl: uploadResult.secure_url });
+
       sessionId = resumeRecord.id; // use Resume UUID as the session identifier
       console.log(`📂 Auth User Resume uploaded. Resume ID: ${sessionId}, URL: ${uploadResult.secure_url}`);
     } else {
@@ -152,17 +155,28 @@ export const analyzeResume = async (req, res, next) => {
       const messages = [
         {
           role: "system",
-          content: "You are a senior recruiter. Analyze resume and return structured JSON only.",
+          content: "You are a senior technical recruiter and career platform AI. Analyze resume and return structured JSON only.",
         },
         {
           role: "user",
           content: `Analyze the following resume text. Extract details and return a JSON object with:
           {
-            "skills": ["Skill1", "Skill2", ...],
+            "skills": ["Skill1", "Skill2"],
             "experienceLevel": "Entry Level / Mid Level / Senior Level / Lead",
-            "weakAreas": ["Area1", "Area2", ...],
-            "suggestedRoles": ["Role1", "Role2", ...],
-            "difficulty": "Beginner / Intermediate / Advanced"
+            "weakAreas": ["Area1", "Area2"],
+            "suggestedRoles": ["Role1", "Role2"],
+            "difficulty": "Beginner / Intermediate / Advanced",
+            "candidateProfile": {
+              "name": "Candidate Full Name or Software Engineer",
+              "skills": ["Skill1", "Skill2", "Skill3"],
+              "experience": "Summary of total years and key experience",
+              "education": "Degree and Institution",
+              "preferredRoles": ["Role1", "Role2"],
+              "location": "Current City/State/Country",
+              "preferredLocation": "Remote / Preferred City",
+              "github": "Extracted GitHub URL or empty string",
+              "linkedin": "Extracted LinkedIn URL or empty string"
+            }
           }
 
           Resume text:
@@ -179,6 +193,9 @@ export const analyzeResume = async (req, res, next) => {
     }
 
     sessions[sessionId].analysis = analysisResult;
+    if (analysisResult.candidateProfile) {
+      sessions[sessionId].candidateProfile = analysisResult.candidateProfile;
+    }
 
     // Save to database if authenticated user
     if (req.user && req.user.id) {
@@ -186,6 +203,54 @@ export const analyzeResume = async (req, res, next) => {
       if (resumeRecord) {
         await resumeRecord.update({ resumeAnalysis: analysisResult });
         console.log(`💾 Saved resume analysis to DB for resume ID: ${sessionId}`);
+      }
+
+      // Sync resumeAnalysis to the user record
+      try {
+        const user = await db.User.findByPk(req.user.id);
+        if (user) {
+          await user.update({ resumeAnalysis: analysisResult });
+          console.log(`💾 Synced resume analysis to User record for user ID: ${req.user.id}`);
+        }
+      } catch (userErr) {
+        console.warn("⚠️ Failed syncing resume analysis to User record:", userErr.message);
+      }
+
+      // Upsert Candidate Profile in DB
+      if (analysisResult.candidateProfile && db.CandidateProfile) {
+        try {
+          const cp = analysisResult.candidateProfile;
+          const [profileRecord, created] = await db.CandidateProfile.findOrCreate({
+            where: { userId: req.user.id },
+            defaults: {
+              name: cp.name || req.user.name || "Candidate",
+              skills: cp.skills || analysisResult.skills || [],
+              experience: cp.experience || analysisResult.experienceLevel || "",
+              education: cp.education || "",
+              preferredRoles: cp.preferredRoles || analysisResult.suggestedRoles || [],
+              location: cp.location || "",
+              preferredLocation: cp.preferredLocation || "Remote",
+              github: cp.github || "",
+              linkedin: cp.linkedin || ""
+            }
+          });
+
+          if (!created) {
+            await profileRecord.update({
+              skills: cp.skills && cp.skills.length > 0 ? cp.skills : profileRecord.skills,
+              experience: cp.experience || profileRecord.experience,
+              education: cp.education || profileRecord.education,
+              preferredRoles: cp.preferredRoles && cp.preferredRoles.length > 0 ? cp.preferredRoles : profileRecord.preferredRoles,
+              location: cp.location || profileRecord.location,
+              preferredLocation: cp.preferredLocation || profileRecord.preferredLocation,
+              github: cp.github || profileRecord.github,
+              linkedin: cp.linkedin || profileRecord.linkedin
+            });
+          }
+          console.log(`👤 Saved/Updated Candidate Profile in DB for User ID: ${req.user.id}`);
+        } catch (cpErr) {
+          console.warn("⚠️ Failed saving candidate profile to DB:", cpErr.message);
+        }
       }
     }
 
@@ -195,21 +260,73 @@ export const analyzeResume = async (req, res, next) => {
   }
 };
 
+/**
+ * Helper to fetch session state from memory or database fallback (hydration)
+ */
+async function getActiveSession(sessionId) {
+  if (!sessionId) return null;
+  if (sessions[sessionId]) return sessions[sessionId];
+
+  // Try to restore from database
+  try {
+    const resume = await db.Resume.findByPk(sessionId);
+    if (resume) {
+      let interviewState = null;
+      
+      // Try to restore latest active/incomplete interview
+      if (db.Interview) {
+        const latestInterview = await db.Interview.findOne({
+          where: { resumeId: sessionId, overallScore: null },
+          order: [["createdAt", "DESC"]]
+        });
+        
+        if (latestInterview) {
+          const assistantMsgs = (latestInterview.chatHistory || []).filter(h => h.role === "assistant");
+          interviewState = {
+            chatHistory: latestInterview.chatHistory || [],
+            scores: latestInterview.scores || [],
+            currentQuestion: assistantMsgs.length > 0 ? assistantMsgs[assistantMsgs.length - 1].content : "",
+            questionCount: assistantMsgs.length,
+            dbInterviewId: latestInterview.id,
+          };
+          console.log(`♻️ Restored active interview state from DB for resume ID: ${sessionId}`);
+        }
+      }
+
+      sessions[sessionId] = {
+        resumeText: "",
+        createdAt: new Date(),
+        analysis: resume.resumeAnalysis,
+        fileName: resume.fileName,
+        interview: interviewState,
+        finalReport: null,
+      };
+      
+      console.log(`♻️ Restored active session state from DB for resume: ${resume.fileName}`);
+      return sessions[sessionId];
+    }
+  } catch (error) {
+    console.error("Error restoring session from DB:", error);
+  }
+  return null;
+}
+
 // 3. Start Interview
 export const startInterview = async (req, res, next) => {
   try {
     const { sessionId, mode } = req.body;
-    if (!sessionId || !sessions[sessionId]) {
+    const session = await getActiveSession(sessionId);
+    if (!session) {
       throw new ApiError(404, "Active session not found. Please upload your resume first.");
     }
 
-    const { analysis } = sessions[sessionId];
+    const { analysis } = session;
     if (!analysis) {
       throw new ApiError(400, "Please run resume analysis first before starting the mock interview.");
     }
 
     // Initialize interview session state
-    sessions[sessionId].interview = {
+    session.interview = {
       chatHistory: [],
       scores: [],
       currentQuestion: "",
@@ -247,27 +364,35 @@ export const startInterview = async (req, res, next) => {
       throw new ApiError(500, `Failed to generate interview question: ${apiError.message}`);
     }
 
-    sessions[sessionId].interview.currentQuestion = firstQuestion;
-    sessions[sessionId].interview.chatHistory.push({ role: "assistant", content: firstQuestion });
-    sessions[sessionId].interview.questionCount = 1;
+    session.interview.currentQuestion = firstQuestion;
+    session.interview.chatHistory.push({ role: "assistant", content: firstQuestion });
+    session.interview.questionCount = 1;
 
     // Save initial interview state to database if user is logged in
     if (req.user && req.user.id) {
       const interviewRecord = await db.Interview.create({
         userId: req.user.id,
         resumeId: sessionId,
-        fileName: sessions[sessionId].fileName || "resume.pdf",
+        fileName: session.fileName || "resume.pdf",
         mode: mode || "text",
-        chatHistory: sessions[sessionId].interview.chatHistory,
+        chatHistory: session.interview.chatHistory,
         scores: [],
         finalReport: null,
         overallScore: null,
       });
-      sessions[sessionId].interview.dbInterviewId = interviewRecord.id;
+      session.interview.dbInterviewId = interviewRecord.id;
       console.log(`💾 Saved initial interview history to DB with Interview ID: ${interviewRecord.id}`);
     }
 
-    return res.status(200).json(new ApiResponse(200, { question: firstQuestion }, "Interview started successfully"));
+    const responseData = { question: firstQuestion };
+    if (session.interview.chatHistory && session.interview.chatHistory.length > 1) {
+      responseData.chatHistory = session.interview.chatHistory.map(msg => ({
+        role: msg.role === "assistant" ? "interviewer" : "user",
+        content: msg.content
+      }));
+    }
+
+    return res.status(200).json(new ApiResponse(200, responseData, "Interview started successfully"));
   } catch (err) {
     next(err);
   }
@@ -277,11 +402,12 @@ export const startInterview = async (req, res, next) => {
 export const chatInterview = async (req, res, next) => {
   try {
     const { sessionId, answer } = req.body;
-    if (!sessionId || !sessions[sessionId]) {
+    const session = await getActiveSession(sessionId);
+    if (!session) {
       throw new ApiError(404, "Active session not found.");
     }
 
-    const { interview, analysis } = sessions[sessionId];
+    const { interview, analysis } = session;
     if (!interview) {
       throw new ApiError(400, "Interview state not initialized. Please call start-interview first.");
     }
@@ -407,11 +533,12 @@ export const chatInterview = async (req, res, next) => {
 export const endInterview = async (req, res, next) => {
   try {
     const { sessionId } = req.body;
-    if (!sessionId || !sessions[sessionId]) {
+    const session = await getActiveSession(sessionId);
+    if (!session) {
       throw new ApiError(404, "Active session not found.");
     }
 
-    const { interview, analysis } = sessions[sessionId];
+    const { interview, analysis } = session;
     if (!interview || !analysis) {
       throw new ApiError(400, "No interview active or resume analyzed for this session.");
     }
@@ -477,7 +604,7 @@ export const endInterview = async (req, res, next) => {
       throw new ApiError(500, `Failed to generate final report: ${apiError.message}`);
     }
 
-    sessions[sessionId].finalReport = finalReport;
+    session.finalReport = finalReport;
 
     // Save final report history to database if user is logged in
     if (req.user && req.user.id && interview.dbInterviewId) {
@@ -575,6 +702,27 @@ export const deleteUserResume = async (req, res, next) => {
 
     await resume.destroy();
     return res.status(200).json(new ApiResponse(200, {}, "Resume deleted successfully"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 10. Delete Interview
+export const deleteUserInterview = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      throw new ApiError(401, "Authentication required.");
+    }
+    const { id } = req.params;
+    const interview = await db.Interview.findOne({
+      where: { id, userId: req.user.id },
+    });
+    if (!interview) {
+      throw new ApiError(404, "Interview not found.");
+    }
+
+    await interview.destroy();
+    return res.status(200).json(new ApiResponse(200, {}, "Interview deleted successfully"));
   } catch (err) {
     next(err);
   }
