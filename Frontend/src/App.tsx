@@ -747,7 +747,6 @@ export default function App() {
               <History
                 token={token}
                 onViewReport={handleViewReport}
-                onContinueInterview={handleStartInterview}
                 setPage={(page) => {
                   if (page === "home") {
                     if (analysis || (user && user.resumeUrl)) {
