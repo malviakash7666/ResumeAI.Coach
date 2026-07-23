@@ -28,6 +28,23 @@ export default {
       employmentType: {
         type: Sequelize.STRING,
         allowNull: true,
+        defaultValue: 'Full Time',
+      },
+      country: {
+        type: Sequelize.STRING,
+        defaultValue: 'India',
+      },
+      workMode: {
+        type: Sequelize.STRING,
+        defaultValue: 'Hybrid',
+      },
+      experienceLevel: {
+        type: Sequelize.STRING,
+        defaultValue: '1-3 Years',
+      },
+      postedDate: {
+        type: Sequelize.DATE,
+        defaultValue: Sequelize.NOW,
       },
       skills: {
         type: Sequelize.JSON,

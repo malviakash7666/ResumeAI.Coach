@@ -23,7 +23,7 @@ export default {
 
       password: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: true,
       },
 
       role: {
@@ -32,6 +32,22 @@ export default {
       },
 
       avatarUrl: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+
+      avatar: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+
+      provider: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        defaultValue: 'local',
+      },
+
+      providerId: {
         type: Sequelize.STRING,
         allowNull: true,
       },
@@ -58,6 +74,36 @@ export default {
 
       updatedBy: {
         type: Sequelize.UUID,
+        allowNull: true,
+      },
+
+      refreshToken: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+      },
+
+      resumeUrl: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+
+      resumeAnalysis: {
+        type: Sequelize.JSON,
+        allowNull: true,
+      },
+
+      interviewHistory: {
+        type: Sequelize.JSON,
+        allowNull: true,
+      },
+
+      phone: {
+        type: Sequelize.STRING,
+        allowNull: true,
+      },
+
+      bio: {
+        type: Sequelize.TEXT,
         allowNull: true,
       },
 
